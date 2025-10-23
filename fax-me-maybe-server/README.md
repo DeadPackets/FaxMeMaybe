@@ -1,90 +1,169 @@
-# React + Vite + Hono + Cloudflare Workers
+# 📠 FaxMeMaybe
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/vite-react-template)
+A modern web application for collecting TODOs with a playful fax machine theme. Built with React, Vite, Hono, and designed to run on Cloudflare Workers.
 
-This template provides a minimal setup for building a React application with TypeScript and Vite, designed to run on Cloudflare Workers. It features hot module replacement, ESLint integration, and the flexibility of Workers deployments.
+## Features
 
-![React + TypeScript + Vite + Cloudflare Workers](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/fc7b4b62-442b-4769-641b-ad4422d74300/public)
+- **Modern, Responsive UI**: Clean interface that works on all devices
+- **Importance Levels**: 5 levels of importance with fire emoji indicators (🔥 to 🔥🔥🔥🔥🔥)
+- **Optional Fields**: Add due dates and author information
+- **API Access**: Direct API endpoint for third-party integrations
+- **n8n Integration**: Automatically forwards TODOs to your self-hosted n8n server
 
-<!-- dash-content-start -->
+## Setup
 
-🚀 Supercharge your web development with this powerful stack:
-
-- [**React**](https://react.dev/) - A modern UI library for building interactive interfaces
-- [**Vite**](https://vite.dev/) - Lightning-fast build tooling and development server
-- [**Hono**](https://hono.dev/) - Ultralight, modern backend framework
-- [**Cloudflare Workers**](https://developers.cloudflare.com/workers/) - Edge computing platform for global deployment
-
-### ✨ Key Features
-
-- 🔥 Hot Module Replacement (HMR) for rapid development
-- 📦 TypeScript support out of the box
-- 🛠️ ESLint configuration included
-- ⚡ Zero-config deployment to Cloudflare's global network
-- 🎯 API routes with Hono's elegant routing
-- 🔄 Full-stack development setup
-- 🔎 Built-in Observability to monitor your Worker
-
-Get started in minutes with local development or deploy directly via the Cloudflare dashboard. Perfect for building modern, performant web applications at the edge.
-
-<!-- dash-content-end -->
-
-## Getting Started
-
-To start a new project with this template, run:
+### 1. Install Dependencies
 
 ```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/vite-react-template
-```
-
-A live deployment of this template is available at:
-[https://react-vite-template.templates.workers.dev](https://react-vite-template.templates.workers.dev)
-
-## Development
-
-Install dependencies:
-
-```bash
+cd fax-me-maybe-server
 npm install
 ```
 
-Start the development server with:
+### 2. Configure n8n Webhook
+
+Create a `.dev.vars` file in the `fax-me-maybe-server` directory:
+
+```bash
+N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/your-webhook-id
+```
+
+For production deployment, add the environment variable to your Cloudflare Worker:
+
+```bash
+wrangler secret put N8N_WEBHOOK_URL
+```
+
+Then enter your n8n webhook URL when prompted.
+
+### 3. Run Development Server
 
 ```bash
 npm run dev
 ```
 
-Your application will be available at [http://localhost:5173](http://localhost:5173).
+The application will be available at `http://localhost:5173`
 
-## Production
+## API Usage
 
-Build your project for production:
+### Submit a TODO
+
+**Endpoint:** `POST /api/todos`
+
+**Request Body:**
+
+```json
+{
+  "importance": 3,
+  "todo": "Fix the login bug",
+  "dueDate": "2025-10-30",
+  "from": "John Doe"
+}
+```
+
+**Parameters:**
+
+- `importance` (required): Number from 1-5
+  - 1: Low (🔥) - "When you have time"
+  - 2: Medium (🔥🔥) - "This week would be nice"
+  - 3: High (🔥🔥🔥) - "Pretty important"
+  - 4: Urgent (🔥🔥🔥🔥) - "Need this soon!"
+  - 5: Critical (🔥🔥🔥🔥🔥) - "DROP EVERYTHING!"
+- `todo` (required): String - The task description
+- `dueDate` (optional): String - ISO date format (YYYY-MM-DD)
+- `from` (optional): String - Author or organization name
+
+**Example with curl:**
+
+```bash
+curl -X POST https://your-domain.com/api/todos \
+  -H "Content-Type: application/json" \
+  -d '{
+    "importance": 3,
+    "todo": "Review the design mockups",
+    "from": "Design Team"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "message": "TODO sent successfully!"
+}
+```
+
+## n8n Webhook Payload
+
+The application sends the following payload to your n8n webhook:
+
+```json
+{
+  "importance": 3,
+  "todo": "Fix the login bug",
+  "dueDate": "2025-10-30",
+  "from": "John Doe",
+  "timestamp": "2025-10-23T10:30:00.000Z"
+}
+```
+
+## Deployment
+
+### Deploy to Cloudflare Workers
+
+```bash
+npm run deploy
+```
+
+Make sure to set the `N8N_WEBHOOK_URL` secret before deploying:
+
+```bash
+wrangler secret put N8N_WEBHOOK_URL
+```
+
+## Development
+
+### Build
 
 ```bash
 npm run build
 ```
 
-Preview your build locally:
+### Type Check
 
 ```bash
-npm run preview
+npm run check
 ```
 
-Deploy your project to Cloudflare Workers:
+### Lint
 
 ```bash
-npm run build && npm run deploy
+npm run lint
 ```
 
-Monitor your workers:
+## Project Structure
 
-```bash
-npx wrangler tail
+```
+fax-me-maybe-server/
+├── src/
+│   ├── react-app/          # React frontend
+│   │   ├── App.tsx         # Main application component
+│   │   ├── App.css         # Application styles
+│   │   └── main.tsx        # React entry point
+│   └── worker/             # Hono backend
+│       └── index.ts        # API routes and n8n integration
+├── package.json
+└── vite.config.ts
 ```
 
-## Additional Resources
+## Tech Stack
 
-- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-- [Vite Documentation](https://vitejs.dev/guide/)
-- [React Documentation](https://reactjs.org/)
-- [Hono Documentation](https://hono.dev/)
+- **Frontend**: React 19, TypeScript, Vite
+- **Backend**: Hono (running on Cloudflare Workers)
+- **Styling**: Modern CSS with gradient effects and responsive design
+- **Deployment**: Cloudflare Workers
+
+## License
+
+See LICENSE file for details.
+
