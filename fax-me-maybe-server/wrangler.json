@@ -9,15 +9,23 @@
 	"observability": {
 		"enabled": true
 	},
-    "routes": [
-      {
-        "pattern": "remind.deadpackets.pw",
-        "custom_domain": true
-      }
-    ],
+	"routes": [
+		{
+			"pattern": "remind.deadpackets.pw",
+			"custom_domain": true
+		}
+	],
 	"upload_source_maps": true,
 	"assets": {
 		"directory": "./dist/client",
 		"not_found_handling": "single-page-application"
-	}
+	},
+	"d1_databases": [
+		{
+			"binding": "faxmemaybe_db",
+			"database_name": "faxmemaybe-db",
+			"database_id": "97ce92cc-6c9f-495e-9c4d-121c1ce12e3e",
+			"remote": true
+		}
+	]
 }
