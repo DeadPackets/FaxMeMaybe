@@ -1,11 +1,41 @@
 import { useState, FormEvent, ChangeEvent } from "react";
-import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2 } from "lucide-react";
+import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useTheme } from "@/components/theme-provider";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+export function ModeToggle() {
+  const { setTheme } = useTheme()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")}>
+          System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 const IMPORTANCE_LEVELS = [
 	{ value: 1, label: "Low", emoji: "🔥", description: "When you have time" },
@@ -14,6 +44,7 @@ const IMPORTANCE_LEVELS = [
 	{ value: 4, label: "Urgent", emoji: "🔥🔥🔥🔥", description: "Need this soon!" },
 	{ value: 5, label: "Critical", emoji: "🔥🔥🔥🔥🔥", description: "DROP EVERYTHING!" },
 ] as const;
+
 
 function App() {
 	const [formData, setFormData] = useState({
@@ -76,11 +107,12 @@ function App() {
 		}
 	};
 
-	const selectedLevel = IMPORTANCE_LEVELS.find((level) => level.value === formData.importance);
-
 	return (
 		<div className="min-h-screen flex items-center justify-center p-4">
 			<div className="w-full max-w-2xl">
+				<div className="flex justify-end mb-4">
+					<ModeToggle />
+				</div>
 				<div className="text-center mb-8">
 					<div className="inline-flex items-center justify-center mb-4">
 						<Flame className="w-12 h-12 mr-2" />
@@ -101,33 +133,32 @@ function App() {
 					<CardContent>
 						<form onSubmit={handleSubmit} className="space-y-6">
 							{/* Importance Level */}
-							<div className="space-y-3">
-								<Label htmlFor="importance" className="text-base">
+							<div className="space-y-2">
+								<Label htmlFor="importance" className="text-base flex items-center gap-2">
+									<Flame className="w-4 h-4" />
 									Importance Level
 								</Label>
-								<div className="grid grid-cols-5 gap-2">
-									{IMPORTANCE_LEVELS.map((level) => (
-										<button
-											key={level.value}
-											type="button"
-											onClick={() => setFormData({ ...formData, importance: level.value })}
-											className={`
-												relative p-3 rounded-lg border-2 transition-all duration-200
-												${formData.importance === level.value ? "shadow-md scale-105" : ""}
-											`}
-											title={`${level.label}: ${level.description}`}
-										>
-											<div className="text-2xl mb-1">{level.emoji}</div>
-											<div className="text-xs font-medium">{level.label}</div>
-										</button>
-									))}
-								</div>
-								{selectedLevel && (
-									<p className="text-sm flex items-center gap-2">
-										<Flame className="w-4 h-4" />
-										{selectedLevel.description}
-									</p>
-								)}
+								<Select
+									value={String(formData.importance)}
+									onValueChange={(val: string) => setFormData({ ...formData, importance: parseInt(val) as 1 | 2 | 3 | 4 | 5 })}
+								>
+									<SelectTrigger id="importance" className="w-full">
+										<SelectValue placeholder="Select importance level" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectGroup>
+											{IMPORTANCE_LEVELS.map((level) => (
+												<SelectItem key={level.value} value={String(level.value)}>
+													<div className="flex items-center gap-2">
+														<span>{level.emoji}</span>
+														<span className="font-medium">{level.label}</span>
+														<span className="text-xs text-muted-foreground">- {level.description}</span>
+													</div>
+												</SelectItem>
+											))}
+										</SelectGroup>
+									</SelectContent>
+								</Select>
 							</div>
 
 							{/* TODO Text */}
