@@ -71,6 +71,37 @@ app.post("/api/todos", async (c) => {
 			return c.json({ error: "Importance must be between 1 and 5" }, 400);
 		}
 
+		// Validate importance is an integer
+		if (!Number.isInteger(body.importance)) {
+			return c.json({ error: "Importance must be a whole number" }, 400);
+		}
+
+		// Validate from field length
+		if (body.from && body.from.trim().length > 20) {
+			return c.json({ error: "From field must be 20 characters or less" }, 400);
+		}
+
+		// Validate dueDate format if provided
+		if (body.dueDate) {
+			const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+			if (!dateRegex.test(body.dueDate)) {
+				return c.json({ error: "Due date must be in YYYY-MM-DD format" }, 400);
+			}
+
+			// Validate it's a valid date
+			const date = new Date(body.dueDate);
+			if (isNaN(date.getTime())) {
+				return c.json({ error: "Invalid due date" }, 400);
+			}
+
+			// Optional: Check if date is not in the past
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			if (date < today) {
+				return c.json({ error: "Due date cannot be in the past" }, 400);
+			}
+		}
+
         // Store TODO in D1 database
         /*
         // todos table schema
@@ -86,7 +117,7 @@ app.post("/api/todos", async (c) => {
           completed_at DATETIME
         );
          */
-        const result = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from || null, new Date().toISOString()).run();
+        const result = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from?.trim() || null, new Date().toISOString()).run();
         console.log("TODO stored in database with ID:", result.meta.last_row_id);
 
 		// Get the n8n webhook URL from environment variable

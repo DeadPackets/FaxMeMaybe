@@ -91,6 +91,22 @@ function App() {
 			return;
 		}
 
+		if (formData.from && formData.from.trim().length > 20) {
+			toast.error("From field must be 20 characters or less");
+			return;
+		}
+
+		if (formData.dueDate) {
+			const selectedDate = new Date(formData.dueDate);
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+
+			if (selectedDate < today) {
+				toast.error("Due date cannot be in the past");
+				return;
+			}
+		}
+
 		setIsSubmitting(true);
 
 		try {
@@ -255,33 +271,45 @@ function App() {
 							)}
 						</div>
 
-							{/* Due Date */}
-							<div className="space-y-2">
-								<Label htmlFor="dueDate" className="text-base flex items-center gap-2">
-									<Calendar className="w-4 h-4" />
-									Due Date <span className="text-xs">(optional)</span>
-								</Label>
-								<Input
-									id="dueDate"
-									type="date"
-									value={formData.dueDate}
-									onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dueDate: e.target.value })}
-								/>
-							</div>
+						{/* Due Date */}
+						<div className="space-y-2">
+							<Label htmlFor="dueDate" className="text-base flex items-center gap-2">
+								<Calendar className="w-4 h-4" />
+								Due Date <span className="text-xs">(optional)</span>
+							</Label>
+							<Input
+								id="dueDate"
+								type="date"
+								value={formData.dueDate}
+								onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dueDate: e.target.value })}
+								min={new Date().toISOString().split('T')[0]}
+							/>
+						</div>
 
-							{/* From */}
-							<div className="space-y-2">
-								<Label htmlFor="from" className="text-base flex items-center gap-2">
+						{/* From */}
+						<div className="space-y-2">
+							<Label htmlFor="from" className="text-base flex items-center justify-between">
+								<span className="flex items-center gap-2">
 									<User className="w-4 h-4" />
 									From <span className="text-xs">(optional)</span>
-								</Label>
-								<Input
-									id="from"
-									placeholder="Your name or email"
-									value={formData.from}
-									onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, from: e.target.value })}
-								/>
-							</div>
+								</span>
+								<span className={`text-xs ${formData.from.length > 20 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+									{formData.from.length}/20
+								</span>
+							</Label>
+							<Input
+								id="from"
+								placeholder="Your name or email"
+								value={formData.from}
+								onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, from: e.target.value })}
+								maxLength={20}
+							/>
+							{formData.from.length > 17 && formData.from.length <= 20 && (
+								<p className="text-xs text-yellow-600 dark:text-yellow-500">
+									{20 - formData.from.length} characters remaining
+								</p>
+							)}
+						</div>
 
 							{/* Submit Button */}
 							<Button
