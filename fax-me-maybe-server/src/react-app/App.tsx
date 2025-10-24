@@ -86,6 +86,11 @@ function App() {
 			return;
 		}
 
+		if (formData.todo.trim().length > 64) {
+			toast.error("TODO must be 64 characters or less");
+			return;
+		}
+
 		setIsSubmitting(true);
 
 		try {
@@ -225,21 +230,30 @@ function App() {
 								</Select>
 							</div>
 
-							{/* TODO Text */}
-							<div className="space-y-2">
-								<Label htmlFor="todo" className="text-base">
-									What needs to be done? <span>*</span>
-								</Label>
-								<Textarea
-									id="todo"
-									placeholder="Describe the task or request..."
-									value={formData.todo}
-									onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, todo: e.target.value })}
-									required
-									rows={4}
-									className="resize-none"
-								/>
-							</div>
+						{/* TODO Text */}
+						<div className="space-y-2">
+							<Label htmlFor="todo" className="text-base flex items-center justify-between">
+								<span>What needs to be done? <span className="text-red-500">*</span></span>
+								<span className={`text-xs ${formData.todo.length > 64 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+									{formData.todo.length}/64
+								</span>
+							</Label>
+							<Textarea
+								id="todo"
+								placeholder="Describe the task or request..."
+								value={formData.todo}
+								onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, todo: e.target.value })}
+								required
+								maxLength={64}
+								rows={4}
+								className="resize-none"
+							/>
+							{formData.todo.length > 60 && formData.todo.length <= 64 && (
+								<p className="text-xs text-yellow-600 dark:text-yellow-500">
+									{64 - formData.todo.length} characters remaining
+								</p>
+							)}
+						</div>
 
 							{/* Due Date */}
 							<div className="space-y-2">

@@ -63,6 +63,10 @@ app.post("/api/todos", async (c) => {
 			return c.json({ error: "TODO text is required" }, 400);
 		}
 
+		if (body.todo.trim().length > 64) {
+			return c.json({ error: "TODO text must be 64 characters or less" }, 400);
+		}
+
 		if (!body.importance || body.importance < 1 || body.importance > 5) {
 			return c.json({ error: "Importance must be between 1 and 5" }, 400);
 		}
