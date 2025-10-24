@@ -26,6 +26,23 @@ app.use("/*", cors());
 // Set secure headers
 app.use("/*", secureHeaders());
 
+// API Key authentication middleware - protect all routes except POST /api/todos
+app.use("/api/*", async (c, next) => {
+	// Skip authentication for POST /api/todos
+	if (c.req.method === "POST" && c.req.path === "/api/todos") {
+		return next();
+	}
+
+	// Check for API key in header
+	const apiKey = c.req.header("X-API-KEY");
+
+	if (!apiKey || apiKey !== c.env.HONO_API_KEY) {
+		return c.json({ error: "Unauthorized" }, 401);
+	}
+
+	await next();
+});
+
 
 // Type definitions for the TODO
 interface TodoSubmission {
