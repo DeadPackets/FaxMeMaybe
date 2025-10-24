@@ -29,7 +29,7 @@ app.use("/*", secureHeaders());
 // API Key authentication middleware - protect all routes except POST /api/todos
 app.use("/api/*", async (c, next) => {
 	// Skip authentication for POST /api/todos
-	if (c.req.method === "POST" && c.req.path === "/api/todos") {
+	if ((c.req.method === "POST" && c.req.path === "/api/todos") || (c.req.method === "GET" && (c.req.path === "/api/health" || c.req.path === "/api/todos/count"))) {
 		return next();
 	}
 
