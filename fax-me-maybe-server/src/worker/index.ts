@@ -60,10 +60,12 @@ app.post("/api/todos", async (c) => {
           source TEXT NOT NULL,
           duedate DATETIME,
           "from" TEXT,
-          timestamp TEXT NOT NULL
+          created_at TEXT NOT NULL,
+          completed INTEGER DEFAULT 0,
+          completed_at DATETIME
         );
          */
-        const result = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", timestamp) VALUES (?, ?, ?, ?, ?, ?)`).bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from || null, new Date().toISOString()).run();
+        const result = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from || null, new Date().toISOString()).run();
         console.log("TODO stored in database with ID:", result.meta.last_row_id);
 
 		// Get the n8n webhook URL from environment variable
@@ -86,12 +88,13 @@ app.post("/api/todos", async (c) => {
                 "X-API-KEY": c.env.N8N_API_KEY,
 			},
 			body: JSON.stringify({
+				id: result.meta.last_row_id,
 				importance: body.importance,
 				todo: body.todo,
 				dueDate: body.dueDate || null,
 				from: body.from || null,
                 source: body.source || "website",
-				timestamp: new Date().toISOString(),
+				created_at: new Date().toISOString(),
 			}),
 		});
 
@@ -129,6 +132,158 @@ app.get("/api/todos/count", async (c) => {
 		console.error("Error fetching TODO count:", error);
 		return c.json({
 			error: "Failed to fetch TODO count",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
+// Get all TODOs with optional filtering
+app.get("/api/todos", async (c) => {
+	try {
+		const completed = c.req.query("completed"); // "true", "false", or undefined (all)
+		const limit = parseInt(c.req.query("limit") || "100");
+		const offset = parseInt(c.req.query("offset") || "0");
+
+		let query: string;
+		let bindings: number[];
+
+		// Filter by completion status
+		if (completed === "true") {
+			query = "SELECT * FROM todos WHERE completed = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?";
+			bindings = [limit, offset];
+		} else if (completed === "false") {
+			query = "SELECT * FROM todos WHERE completed = 0 ORDER BY created_at DESC LIMIT ? OFFSET ?";
+			bindings = [limit, offset];
+		} else {
+			query = "SELECT * FROM todos ORDER BY created_at DESC LIMIT ? OFFSET ?";
+			bindings = [limit, offset];
+		}
+
+		const result = await c.env.faxmemaybe_db.prepare(query).bind(...bindings).all();
+
+		return c.json({
+			success: true,
+			todos: result.results,
+			count: result.results.length
+		});
+	} catch (error) {
+		console.error("Error fetching TODOs:", error);
+		return c.json({
+			error: "Failed to fetch TODOs",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
+// Mark a TODO as complete
+app.patch("/api/todos/:id/complete", async (c) => {
+	try {
+		const id = c.req.param("id");
+
+		if (!id || isNaN(parseInt(id))) {
+			return c.json({ error: "Invalid TODO ID" }, 400);
+		}
+
+		// Check if TODO exists
+		const existing = await c.env.faxmemaybe_db
+			.prepare("SELECT id FROM todos WHERE id = ?")
+			.bind(parseInt(id))
+			.first();
+
+		if (!existing) {
+			return c.json({ error: "TODO not found" }, 404);
+		}
+
+		// Mark as complete
+		await c.env.faxmemaybe_db
+			.prepare("UPDATE todos SET completed = 1, completed_at = ? WHERE id = ?")
+			.bind(new Date().toISOString(), parseInt(id))
+			.run();
+
+		return c.json({
+			success: true,
+			message: "TODO marked as complete"
+		});
+	} catch (error) {
+		console.error("Error marking TODO as complete:", error);
+		return c.json({
+			error: "Failed to mark TODO as complete",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
+// Mark a TODO as incomplete
+app.patch("/api/todos/:id/incomplete", async (c) => {
+	try {
+		const id = c.req.param("id");
+
+		if (!id || isNaN(parseInt(id))) {
+			return c.json({ error: "Invalid TODO ID" }, 400);
+		}
+
+		// Check if TODO exists
+		const existing = await c.env.faxmemaybe_db
+			.prepare("SELECT id FROM todos WHERE id = ?")
+			.bind(parseInt(id))
+			.first();
+
+		if (!existing) {
+			return c.json({ error: "TODO not found" }, 404);
+		}
+
+		// Mark as incomplete
+		await c.env.faxmemaybe_db
+			.prepare("UPDATE todos SET completed = 0, completed_at = NULL WHERE id = ?")
+			.bind(parseInt(id))
+			.run();
+
+		return c.json({
+			success: true,
+			message: "TODO marked as incomplete"
+		});
+	} catch (error) {
+		console.error("Error marking TODO as incomplete:", error);
+		return c.json({
+			error: "Failed to mark TODO as incomplete",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
+// Delete a TODO
+app.delete("/api/todos/:id", async (c) => {
+	try {
+		const id = c.req.param("id");
+
+		if (!id || isNaN(parseInt(id))) {
+			return c.json({ error: "Invalid TODO ID" }, 400);
+		}
+
+		// Check if TODO exists
+		const existing = await c.env.faxmemaybe_db
+			.prepare("SELECT id FROM todos WHERE id = ?")
+			.bind(parseInt(id))
+			.first();
+
+		if (!existing) {
+			return c.json({ error: "TODO not found" }, 404);
+		}
+
+		// Delete the TODO
+		await c.env.faxmemaybe_db
+			.prepare("DELETE FROM todos WHERE id = ?")
+			.bind(parseInt(id))
+			.run();
+
+		return c.json({
+			success: true,
+			message: "TODO deleted successfully"
+		});
+	} catch (error) {
+		console.error("Error deleting TODO:", error);
+		return c.json({
+			error: "Failed to delete TODO",
 			message: error instanceof Error ? error.message : "Unknown error"
 		}, 500);
 	}

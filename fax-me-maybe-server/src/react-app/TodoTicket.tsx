@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Flame, Calendar, User } from "lucide-react";
+import QRCode from "qrcode";
 
 const IMPORTANCE_LEVELS = [
 	{ value: 1, label: "Low", count: 1 },
@@ -10,26 +11,46 @@ const IMPORTANCE_LEVELS = [
 ] as const;
 
 interface TodoTicketProps {
+	id?: string;
 	todo?: string;
 	importance?: number;
 	dueDate?: string;
 	from?: string;
-	timestamp?: string;
+	created_at?: string;
 }
 
 function TodoTicket() {
 	const [params, setParams] = useState<TodoTicketProps>({});
+	const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
 
 	useEffect(() => {
 		// Parse URL parameters
 		const urlParams = new URLSearchParams(window.location.search);
+		const id = urlParams.get("id");
+
 		setParams({
+			id: id || undefined,
 			todo: urlParams.get("todo") || "No TODO specified",
 			importance: parseInt(urlParams.get("importance") || "3"),
 			dueDate: urlParams.get("dueDate") || undefined,
 			from: urlParams.get("from") || undefined,
-			timestamp: urlParams.get("timestamp") || new Date().toISOString(),
+			created_at: urlParams.get("created_at") || new Date().toISOString(),
 		});
+
+		// Generate QR code if we have an ID
+		if (id) {
+			const completeUrl = `${window.location.origin}/api/todos/${id}/complete`;
+			QRCode.toDataURL(completeUrl, {
+				width: 200,
+				margin: 2,
+				color: {
+					dark: '#000000',
+					light: '#FFFFFF'
+				}
+			})
+				.then(url => setQrCodeUrl(url))
+				.catch(err => console.error('Error generating QR code:', err));
+		}
 
 		// Add print styles
 		const style = document.createElement("style");
@@ -117,7 +138,7 @@ function TodoTicket() {
 			</div>
 
 			{/* 3. Separator */}
-			<div className="border-t border-gray-950 mb-10"></div>
+			<div className="border-t border-gray-300 mb-10"></div>
 
 			{/* 4. TODO Content */}
 			<div className="text-center mb-10">
@@ -150,12 +171,28 @@ function TodoTicket() {
 				</div>
 			)}
 
-			{/* 7. Separator */}
-			<div className="border-t border-gray-950 mt-10 mb-6"></div>
+			{/* QR Code for marking as complete */}
+			{params.id && qrCodeUrl && (
+				<div className="text-center mb-10">
+					<div className="flex flex-col items-center gap-4">
+						<img
+							src={qrCodeUrl}
+							alt="QR Code to mark as complete"
+							className="w-48 h-48 border-2 border-black"
+						/>
+						<div className="text-lg font-semibold">
+							Scan to Mark Complete
+						</div>
+					</div>
+				</div>
+			)}
 
-			{/* 8. Footer with timestamp and branding */}
+			{/* 7. Separator */}
+			<div className="border-t border-gray-300 mt-10 mb-6"></div>
+
+			{/* 8. Footer with created_at and branding */}
 			<div className="text-center text-lg font-medium">
-				{formatTimestamp(params.timestamp)} • Powered by FaxMeMaybe
+				{formatTimestamp(params.created_at)} • Powered by FaxMeMaybe
 			</div>
 		</div>
 	);

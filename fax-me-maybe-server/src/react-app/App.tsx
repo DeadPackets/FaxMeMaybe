@@ -138,7 +138,7 @@ function App() {
 		params.set("importance", String(formData.importance));
 		if (formData.dueDate) params.set("dueDate", formData.dueDate);
 		if (formData.from) params.set("from", formData.from);
-		params.set("timestamp", new Date().toISOString());
+		params.set("created_at", new Date().toISOString());
 
 		return `${window.location.origin}/todo-ticket?${params.toString()}`;
 	};
