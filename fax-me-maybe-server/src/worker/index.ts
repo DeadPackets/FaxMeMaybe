@@ -116,6 +116,24 @@ app.post("/api/todos", async (c) => {
 	}
 });
 
+// Get total count of TODOs
+app.get("/api/todos/count", async (c) => {
+	try {
+		const result = await c.env.faxmemaybe_db.prepare("SELECT COUNT(*) as count FROM todos").first<{ count: number }>();
+
+		return c.json({
+			success: true,
+			count: result?.count || 0
+		});
+	} catch (error) {
+		console.error("Error fetching TODO count:", error);
+		return c.json({
+			error: "Failed to fetch TODO count",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
 // Health check endpoint
 app.get("/api/health", (c) => c.json({ status: "ok" }));
 

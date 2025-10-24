@@ -1,0 +1,12 @@
+[project]
+name = "fax-me-maybe-client"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.40.58",
+    "boto3-stubs==1.40.58",
+    "python-dotenv>=1.1.1",
+    "python-escpos[usb]>=3.1",
+]

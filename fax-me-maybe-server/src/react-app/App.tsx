@@ -1,5 +1,5 @@
-import { useState, FormEvent, ChangeEvent } from "react";
-import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon } from "lucide-react";
+import { useState, FormEvent, ChangeEvent, useEffect } from "react";
+import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,28 @@ function App() {
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
+	const [todoCount, setTodoCount] = useState<number | null>(null);
+	const [isLoadingCount, setIsLoadingCount] = useState(true);
+
+	// Fetch TODO count on component mount
+	useEffect(() => {
+		fetchTodoCount();
+	}, []);
+
+	const fetchTodoCount = async () => {
+		try {
+			setIsLoadingCount(true);
+			const response = await fetch("/api/todos/count");
+			const data = await response.json();
+			if (response.ok && data.success) {
+				setTodoCount(data.count);
+			}
+		} catch (error) {
+			console.error("Error fetching TODO count:", error);
+		} finally {
+			setIsLoadingCount(false);
+		}
+	};
 
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
@@ -86,6 +108,9 @@ function App() {
 				toast.success(data.message || "TODO sent successfully!");
 				setIsSubmitted(true);
 
+				// Refresh the count
+				fetchTodoCount();
+
 				// Reset form after 2 seconds
 				setTimeout(() => {
 					setFormData({
@@ -107,6 +132,28 @@ function App() {
 		}
 	};
 
+	const generateTicketUrl = () => {
+		const params = new URLSearchParams();
+		params.set("todo", formData.todo);
+		params.set("importance", String(formData.importance));
+		if (formData.dueDate) params.set("dueDate", formData.dueDate);
+		if (formData.from) params.set("from", formData.from);
+		params.set("timestamp", new Date().toISOString());
+
+		return `${window.location.origin}/todo-ticket?${params.toString()}`;
+	};
+
+	const openTicket = () => {
+		const url = generateTicketUrl();
+		window.open(url, "_blank");
+	};
+
+	const copyTicketUrl = () => {
+		const url = generateTicketUrl();
+		navigator.clipboard.writeText(url);
+		toast.success("Ticket URL copied to clipboard!");
+	};
+
 	return (
 		<div className="min-h-screen flex items-center justify-center p-4">
 			<div className="w-full max-w-2xl">
@@ -121,6 +168,23 @@ function App() {
 					<p className="text-lg">
 						Send me a TODO, I'll get to it... eventually.
 					</p>
+
+					{/* Stats Counter */}
+					<div className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-muted/50 border">
+						<CheckCircle2 className="w-5 h-5 text-green-500" />
+						<div className="text-sm">
+							<span className="font-bold text-2xl">
+								{isLoadingCount ? (
+									<Loader2 className="w-6 h-6 animate-spin inline" />
+								) : (
+									todoCount?.toLocaleString() || "0"
+								)}
+							</span>
+							<span className="ml-2 text-muted-foreground">
+								TODOs sent so far
+							</span>
+						</div>
+					</div>
 				</div>
 
 				<Card className="shadow-xl border">
@@ -229,6 +293,30 @@ function App() {
 									</>
 								)}
 							</Button>
+
+							{/* Ticket Preview Buttons */}
+							{formData.todo && (
+								<div className="flex gap-2 pt-2">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={openTicket}
+										disabled={!formData.todo.trim()}
+										className="flex-1"
+									>
+										<Printer className="w-4 h-4" />
+										Preview Ticket
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={copyTicketUrl}
+										disabled={!formData.todo.trim()}
+									>
+										<Copy className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
 						</form>
 					</CardContent>
 				</Card>
