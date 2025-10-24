@@ -1,0 +1,7 @@
+services:
+    fax-me-maybe-client:
+      build: .
+      image: fax-me-maybe-client:latest
+      container_name: fax-me-maybe-client
+      env_file: .env
+      restart: unless-stopped
