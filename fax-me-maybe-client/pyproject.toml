@@ -9,4 +9,6 @@ dependencies = [
     "boto3-stubs==1.40.58",
     "python-dotenv>=1.1.1",
     "python-escpos[usb]>=3.1",
+    "selenium>=4.37.0",
+    "pillow>=11.0.0",
 ]
