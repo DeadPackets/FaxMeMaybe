@@ -12,3 +12,5 @@
 - [ ] Build an iOS Shortcut extension to quickly add tasks from anywhere
 - [ ] Add n8n workflow details in README
 - [ ] Improve n8n workflows to automatically create tasks from various sources (like emails, messages, etc) with gemini-2.5-flash
+- [ ] Add OpenGraph metadata for better link previews
+- [ ] Add a favicon
