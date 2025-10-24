@@ -1,18 +1,24 @@
-import { Hono, Context, Next } from "hono";
+import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from 'hono/secure-headers'
-import { rateLimit, RateLimitKeyFunc } from "@elithrar/workers-hono-rate-limit";
+import { rateLimit } from './rate-limit';
 
-// Rate limit configuration
-const getKey: RateLimitKeyFunc = (c: Context): string => {
-	return c.req.header("CF-Connecting-IP") || "";
-};
-
-const rateLimiter = async (c: Context, next: Next) => {
-	return await rateLimit(c.env.API_ENDPOINT_LIMIT, getKey)(c, next);
-};
 
 const app = new Hono<{ Bindings: Env }>();
+
+// Enable rate limiting only if RATE_LIMITER is available
+app.use('/api/*', async (c, next) => {
+  // Only apply rate limiting if the binding is available and has the limit method
+  if (c.env.RATE_LIMITER && typeof c.env.RATE_LIMITER.limit === 'function') {
+    const rateLimitMiddleware = rateLimit({
+      rateLimiter: (c) => c.env.RATE_LIMITER,
+      getRateLimitKey: (c) => c.req.header('cf-connecting-ip') ?? 'unknown',
+    });
+    return rateLimitMiddleware(c, next);
+  }
+  // If rate limiter is not available (e.g., in development), skip rate limiting
+  await next();
+});
 
 // Enable CORS for all routes
 app.use("/*", cors());
@@ -20,8 +26,6 @@ app.use("/*", cors());
 // Set secure headers
 app.use("/*", secureHeaders());
 
-// Apply rate limiting
-app.use("/api/*", rateLimiter);
 
 // Type definitions for the TODO
 interface TodoSubmission {
@@ -59,10 +63,8 @@ app.post("/api/todos", async (c) => {
           timestamp TEXT NOT NULL
         );
          */
-        const {result} = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", timestamp) VALUES (?, ?, ?, ?, ?, ?)`)
-            .bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from || null, new Date().toISOString())
-            .run();
-        console.log("Stored TODO with ID:", result.lastInsertRowId);
+        const result = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", timestamp) VALUES (?, ?, ?, ?, ?, ?)`).bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from || null, new Date().toISOString()).run();
+        console.log("TODO stored in database with ID:", result.meta.last_row_id);
 
 		// Get the n8n webhook URL from environment variable
 		const n8nUrl = c.env.N8N_WEBHOOK_URL;
@@ -80,7 +82,8 @@ app.post("/api/todos", async (c) => {
 		const response = await fetch(n8nUrl, {
 			method: "POST",
 			headers: {
-				"Content-Type": "application/json"
+				"Content-Type": "application/json",
+                "X-API-KEY": c.env.N8N_API_KEY,
 			},
 			body: JSON.stringify({
 				importance: body.importance,

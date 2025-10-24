@@ -15,16 +15,6 @@
 			"custom_domain": true
 		}
 	],
-    "ratelimits": [
-      {
-        "name": "API_ENDPOINT_LIMIT",
-        "namespace_id": "1001",
-        "simple": {
-          "limit": 10,
-          "period": 60
-        }
-      }
-    ],
 	"upload_source_maps": true,
 	"assets": {
 		"directory": "./dist/client",
@@ -37,5 +27,15 @@
 			"database_id": "97ce92cc-6c9f-495e-9c4d-121c1ce12e3e",
 			"remote": true
 		}
-	]
+	],
+    "ratelimits": [
+        {
+            "name": "RATE_LIMITER",
+            "namespace_id": "1001",
+            "simple": {
+                "limit": 10,
+                "period": 60
+            }
+        }
+    ]
 }
