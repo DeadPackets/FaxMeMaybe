@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 import App from "./App.tsx";
 import TodoTicket from "./TodoTicket.tsx";
+import FirstBloodReceipt from "./FirstBloodReceipt.tsx";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -14,6 +15,7 @@ createRoot(document.getElementById("root")!).render(
 				<Routes>
 					<Route path="/" element={<App />} />
 					<Route path="/todo-ticket" element={<TodoTicket />} />
+					<Route path="/first-blood-receipt" element={<FirstBloodReceipt />} />
 				</Routes>
 			</BrowserRouter>
 			<Toaster />
