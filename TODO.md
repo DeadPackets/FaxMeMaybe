@@ -6,11 +6,11 @@
 - [x] Add Hono API route to get all tasks (with filtering options)
 - [x] Add Hono API route to delete tasks
 - [x] Add QR code in TodoTicket.tsx to mark as complete
-- [ ] Use Cloudflare Browser Rendering to render TodoTicket.tsx and store rendered image in R2
+- [x] Use Cloudflare Browser Rendering to render TodoTicket.tsx and store rendered image in R2
 - [ ] Let Docker client automatically pull latest images
 - [ ] Build an OSX menu bar app using Tauri
 - [ ] Build an iOS Shortcut extension to quickly add tasks from anywhere
-- [ ] Add n8n workflow details in README
 - [ ] Improve n8n workflows to automatically create tasks from various sources (like emails, messages, etc) with gemini-2.5-flash
 - [x] Add OpenGraph metadata for better link previews
 - [x] Add a favicon
+- [x] Migrate from IDs to UUIDs to prevent enumeration attacks

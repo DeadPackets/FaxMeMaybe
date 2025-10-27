@@ -24,10 +24,19 @@
 		{
 			"binding": "faxmemaybe_db",
 			"database_name": "faxmemaybe-db",
-			"database_id": "97ce92cc-6c9f-495e-9c4d-121c1ce12e3e",
-			"remote": true
+			"database_id": "97ce92cc-6c9f-495e-9c4d-121c1ce12e3e"
 		}
 	],
+    "browser": {
+      "binding": "CLOUDFLARE_BROWSER"
+    },
+    "r2_buckets": [
+      {
+        "binding": "TICKET_BUCKET",
+        "bucket_name": "fax-me-maybe-tickets",
+        "preview_bucket_name": "fax-me-maybe-tickets"
+      }
+    ],
     "ratelimits": [
         {
             "name": "RATE_LIMITER",
