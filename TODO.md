@@ -1,6 +1,6 @@
 - [ ] Reach v1.0 milestone
 - [ ] Document everything in README
-- [ ] Github Actions CI/CD to automate pushes to Cloudflare Workers/Dockerhub
+- [x] Github Actions CI/CD to automate pushes to Cloudflare Workers/Dockerhub
 - [x] Add a column in the database for tracking completion
 - [x] Add Hono API route to mark tasks as complete
 - [x] Add Hono API route to get all tasks (with filtering options)
