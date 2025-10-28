@@ -3,6 +3,8 @@ services:
       build: .
       image: ghcr.io/deadpackets/fax-me-maybe-client:latest
       container_name: fax-me-maybe-client
+      devices:
+        - "/dev/usb/lp0:/dev/usb/lp0"
       env_file: .env
       restart: unless-stopped
     watchtower:
