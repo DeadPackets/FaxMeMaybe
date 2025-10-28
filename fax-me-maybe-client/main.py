@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import time
 import tempfile
 from datetime import datetime
@@ -109,17 +108,10 @@ def print_image_to_thermal(image_path: str) -> bool:
         return False
 
     try:
-        print(f"Printing image to thermal printer...")
+        print(f"Printing image ({image_path}) to thermal printer...")
 
         # Open the image and convert to a format suitable for thermal printing
         img = Image.open(image_path)
-
-        # Resize image to fit thermal printer width (typically 384 or 576 pixels)
-        # Adjust this based on your printer's specifications
-        printer_width = 576  # Common thermal printer width
-        aspect_ratio = img.height / img.width
-        new_height = int(printer_width * aspect_ratio)
-        img = img.resize((printer_width, new_height), Image.Resampling.LANCZOS)
 
         # Convert to grayscale for better thermal printing
         img = img.convert("L")
@@ -162,23 +154,8 @@ def format_message(message: dict) -> str:
     """Format a message for display."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     message_id = message.get("MessageId", "Unknown")
-
-    try:
-        # Try to parse the body as JSON for pretty printing
-        body = json.loads(message.get("Body", "{}"))
-        body_str = json.dumps(body, indent=2)
-    except json.JSONDecodeError:
-        # If not JSON, just use the raw body
-        body_str = message.get("Body", "")
-
-    return f"""
-{"=" * 80}
-[{timestamp}] New Ticket Message
-Message ID: {message_id}
-{"=" * 80}
-{body_str}
-{"=" * 80}
-"""
+    body_str = message.get("Body", "")
+    return f"[{timestamp}] Message ID: {message_id} -> {body_str}"
 
 
 def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
@@ -223,7 +200,10 @@ def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
                             )
 
                             # Download the ticket from R2
-                            ticket_url = message["Body"]
+                            ticket_url = message.get("Body", "").strip()
+                            response = requests.get(url=f"{os.getenv('TICKETS_BUCKET_URL')}/{ticket_url}")
+                            with open(screenshot_path, "wb") as f:
+                                f.write(response.content)
 
                             # Print to thermal printer
                             print_image_to_thermal(screenshot_path)
@@ -286,15 +266,6 @@ def main():
         print("Error: AWS credentials not found", file=sys.stderr)
         print(
             "Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your .env file",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    # Validate Cloudflare credentials
-    if not os.getenv("CLOUDFLARE_API_TOKEN") and not os.getenv("CLOUDFLARE_ACCOUNT_ID"):
-        print("Error: Cloudflare API token or Account ID not found", file=sys.stderr)
-        print(
-            "Please set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in your .env file",
             file=sys.stderr,
         )
         sys.exit(1)
