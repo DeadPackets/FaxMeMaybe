@@ -41,8 +41,9 @@ function TodoTicket() {
 		if (id) {
 			const completeUrl = `${window.location.origin}/api/todos/${id}/complete`;
 			QRCode.toDataURL(completeUrl, {
-				width: 200,
+				width: 400,
 				margin: 2,
+				errorCorrectionLevel: 'H',
 				color: {
 					dark: '#000000',
 					light: '#FFFFFF'
@@ -178,7 +179,7 @@ function TodoTicket() {
 						<img
 							src={qrCodeUrl}
 							alt="QR Code to mark as complete"
-							className="w-48 h-48 border-2 border-black"
+							className="w-96 h-96 border-2 border-black"
 						/>
 						<div className="text-lg font-semibold">
 							Scan to Mark Complete

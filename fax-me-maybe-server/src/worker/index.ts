@@ -141,6 +141,14 @@ app.post("/api/todos", async (c) => {
 
         // Use Puppeteer to visit a URL to process the TODO
         const todoUrl = `https://remind.deadpackets.pw/todo-ticket?id=${todoId}&todo=${encodeURIComponent(body.todo.trim())}&importance=${body.importance}`;
+        if (body.dueDate) {
+            todoUrl.concat(`&dueDate=${encodeURIComponent(body.dueDate)}`);
+        }
+
+        if (body.from) {
+            todoUrl.concat(`&from=${encodeURIComponent(body.from.trim())}`);
+        }
+
         const browser = await puppeteer.launch(c.env.CLOUDFLARE_BROWSER);
         const page = await browser.newPage();
         await page.goto(todoUrl, { waitUntil: 'networkidle2' });

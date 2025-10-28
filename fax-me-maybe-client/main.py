@@ -122,7 +122,6 @@ def print_image_to_thermal(image_path: str) -> bool:
 
         # Print the image
         p.image(processed_path)
-        p.text("\n\n")  # Add some spacing after the image
         p.cut()  # Cut the paper
 
         print(f"✓ Image printed successfully")
