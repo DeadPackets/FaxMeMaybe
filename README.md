@@ -129,77 +129,45 @@ I did not know most of these technologies before starting this project. By combi
 
 ## 🎓 Technology Explained (For Beginners)
 
-### Frontend Technologies
+### 🎨 Frontend Technologies
 
-#### **React** 
-A JavaScript library for building user interfaces. Think of it as LEGO blocks for websites — you build reusable components that work together.
+| Technology | Description | Think of it as... |
+|------------|-------------|-------------------|
+| ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black) | A JavaScript library for building user interfaces<br/>• Build reusable components<br/>• Declarative UI updates<br/>• Virtual DOM for performance | LEGO blocks for websites — you build components that work together |
+| ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white) | JavaScript with type checking<br/>• Catches bugs at compile time<br/>• Better IDE support<br/>• Self-documenting code | JavaScript with superpowers and safety rails |
+| ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white) | Lightning-fast build tool<br/>• Instant hot module replacement<br/>• Optimized production builds<br/>• Native ES modules | A sports car version of webpack — fast development, smooth builds |
+| ![shadcn/ui](https://img.shields.io/badge/shadcn/ui-000000?style=flat-square&logo=shadcnui&logoColor=white) | Beautiful, accessible component library<br/>• Built on Radix UI primitives<br/>• Fully customizable<br/>• Copy-paste ready | A designer's gift to developers — pre-made, gorgeous components |
 
-#### **TypeScript**
-JavaScript with superpowers! It adds type checking, which helps catch bugs before your code runs.
+### ⚡ Backend Technologies
 
-#### **Vite**
-A super-fast build tool that bundles your code and makes development smooth. It's like a compiler that also serves your website.
+| Technology | Description | Think of it as... |
+|------------|-------------|-------------------|
+| ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Serverless code running at the edge<br/>• Runs in 300+ cities worldwide<br/>• Auto-scaling, zero config<br/>• Pay only for what you use<br/>• <1ms cold starts | Your code living in the cloud, close to users, automatically scaling |
+| ![Hono](https://img.shields.io/badge/Hono-E36002?style=flat-square&logo=hono&logoColor=white) | Lightweight web framework<br/>• Express.js-like API<br/>• Built for edge runtimes<br/>• Middleware support<br/>• Ultra-fast routing | Express.js's speedy cousin built for the edge |
+| ![Cloudflare D1](https://img.shields.io/badge/Cloudflare_D1-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Serverless SQLite database<br/>• SQL database at the edge<br/>• Global replication<br/>• Zero-latency reads<br/>• Automatic backups | A spreadsheet in the cloud that you query with SQL |
+| ![Cloudflare R2](https://img.shields.io/badge/Cloudflare_R2-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Object storage (S3-compatible)<br/>• No egress fees<br/>• Global distribution<br/>• S3 API compatible<br/>• Stores our ticket images | A hard drive in the cloud — upload files, get URLs |
+| ![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=flat-square&logo=puppeteer&logoColor=white) | Headless browser automation<br/>• Chrome/Chromium control<br/>• Screenshot & PDF generation<br/>• Web scraping & testing<br/>• Renders our tickets | A robot that opens web pages and takes screenshots |
 
-#### **shadcn/ui**
-Pre-built, beautiful UI components that follow modern design principles. Save time instead of building buttons and forms from scratch.
+### 📬 Message Queue
 
-### Backend Technologies
+| Technology | Description | Why use it? |
+|------------|-------------|-------------|
+| ![AWS SQS](https://img.shields.io/badge/AWS_SQS-FF9900?style=flat-square&logo=amazon-aws&logoColor=white) | Simple Queue Service<br/>• Fully managed message queue<br/>• Guaranteed delivery<br/>• Automatic scaling<br/>• Dead-letter queue support | **Think of it as:** A reliable post office<br/>• Server doesn't need to know if printer is online<br/>• Messages wait until printer is ready<br/>• Automatic retries if something fails<br/>• Decouples services for reliability |
 
-#### **Cloudflare Workers**
-Serverless code that runs at the "edge" (Cloudflare's data centers worldwide). Instead of renting a server, your code runs close to your users for ultra-low latency.
+### 🖥️ Hardware & Client
 
-**Think of it as:** Your code living in the cloud, automatically scaling, and only charging you for what you use.
+| Technology | Description | Perfect for... |
+|------------|-------------|----------------|
+| ![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-C51A4A?style=flat-square&logo=raspberry-pi&logoColor=white) | Tiny, affordable Linux computer<br/>• Size of a credit card<br/>• Low power consumption<br/>• GPIO pins for hardware<br/>• Full Linux environment | IoT projects, home automation, learning Linux, and running our printer client! |
+| ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) | Beginner-friendly programming language<br/>• Easy to read and write<br/>• Huge ecosystem of libraries<br/>• Great for automation<br/>• Hardware control via libraries | Scripting, automation, data processing, and controlling our thermal printer |
+| **python-escpos** | Python library for ESC/POS printers<br/>• USB thermal printer control<br/>• Image printing support<br/>• Cross-platform<br/>• Easy-to-use API | Controlling receipt printers and thermal printers with Python |
 
-#### **Hono**
-A lightweight web framework for Cloudflare Workers (similar to Express.js). It handles HTTP requests, routing, and middleware.
+### 🚀 DevOps & CI/CD
 
-#### **Cloudflare D1**
-A serverless SQL database built on SQLite. Your data lives at the edge, close to your users.
-
-**Think of it as:** A spreadsheet in the cloud that you can query with SQL.
-
-#### **Cloudflare R2**
-Object storage (like Amazon S3) for storing files — in this case, rendered ticket images.
-
-**Think of it as:** A hard drive in the cloud for storing files.
-
-#### **Puppeteer**
-A headless browser (Chrome without the visual interface) controlled by code. We use it to render web pages as images.
-
-**Think of it as:** A robot that opens web pages and takes screenshots.
-
-### Message Queue
-
-#### **AWS SQS (Simple Queue Service)**
-A message queue that acts as a buffer between the server and the printer client.
-
-**Think of it as:** A reliable post office — you drop messages in, and they're guaranteed to be delivered to whoever is listening.
-
-**Why use it?** 
-- The server doesn't need to know if the printer is online
-- Messages wait safely until the printer is ready
-- Automatic retries if something fails
-
-### Hardware Client
-
-#### **Raspberry Pi**
-A tiny, affordable computer (about the size of a credit card) running Linux. Perfect for IoT projects.
-
-#### **Python**
-A beginner-friendly programming language. Great for scripting, automation, and hardware control.
-
-#### **python-escpos**
-A Python library for controlling ESC/POS thermal printers (like receipt printers).
-
-### DevOps
-
-#### **GitHub Actions**
-Automation for your code repository. Every time you push code, it automatically builds and deploys your project.
-
-**Think of it as:** A robot assistant that tests and deploys your code whenever you make changes.
-
-#### **CI/CD (Continuous Integration/Continuous Deployment)**
-A practice where code changes are automatically tested and deployed. Push to `main` → Build → Test → Deploy. All automatic!
+| Technology | Description | What it does for us |
+|------------|-------------|---------------------|
+| ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white) | Automation for GitHub repositories<br/>• Trigger on push/PR/schedule<br/>• Matrix builds<br/>• Secrets management<br/>• Free for public repos | **Think of it as:** A robot assistant that:<br/>• Watches for code changes<br/>• Runs tests automatically<br/>• Deploys to production<br/>• Notifies you of issues |
+| **CI/CD** | Continuous Integration/Deployment<br/>• Automate testing<br/>• Automate deployment<br/>• Catch bugs early<br/>• Fast iteration | Push to `main` → Build → Test → Deploy<br/>All automatic, no manual steps! |
 
 ---
 
