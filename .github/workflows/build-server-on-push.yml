@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - fax-me-maybe-server/**
+  workflow_dispatch:
+
 
 jobs:
     build-server:
@@ -13,6 +15,11 @@ jobs:
       steps:
         - name: Checkout repository
           uses: actions/checkout@v5
+
+        - name: Check directory structure in tree format
+          run: |
+            pwd
+            tree -L 2
 
         - name: Build & Deploy Worker
           uses: cloudflare/wrangler-action@v3

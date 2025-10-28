@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - fax-me-maybe-client/**
+  workflow_dispatch:
 
 jobs:
   build-client:
