@@ -145,13 +145,13 @@ app.post("/api/todos", async (c) => {
         console.log("TODO stored in database with ID:", todoId);
 
         // Use Puppeteer to visit a URL to process the TODO
-        const todoUrl = `https://remind.deadpackets.pw/todo-ticket?id=${todoId}&todo=${encodeURIComponent(body.todo.trim())}&importance=${body.importance}`;
+        let todoUrl = `https://remind.deadpackets.pw/todo-ticket?id=${todoId}&todo=${encodeURIComponent(body.todo.trim())}&importance=${body.importance}`;
         if (body.dueDate) {
-            todoUrl.concat(`&dueDate=${encodeURIComponent(body.dueDate)}`);
+            todoUrl += `&dueDate=${encodeURIComponent(body.dueDate)}`;
         }
 
         if (body.from) {
-            todoUrl.concat(`&from=${encodeURIComponent(body.from.trim())}`);
+            todoUrl += `&from=${encodeURIComponent(body.from.trim())}`;
         }
 
         const browser = await puppeteer.launch(c.env.CLOUDFLARE_BROWSER);
