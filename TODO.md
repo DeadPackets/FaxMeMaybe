@@ -6,10 +6,10 @@
 - [ ] Build an iOS Shortcut extension to quickly add tasks from anywhere
 - [ ] Improve n8n workflows to automatically create tasks from various sources (like emails, messages, etc) with gemini-2.5-flash
 - [ ] Add versioning for the client and API, autoincrementing with each push to main
-- [ ] Build admin dashboard to view stats and manage tasks
-- [ ] Requests made with API key should bypass rate limits
 
 # DONE
+- [x] Build admin dashboard to view stats and manage tasks
+- [x] Requests made with API key should bypass rate limits
 - [x] Add OpenGraph metadata for better link previews
 - [x] Add a favicon
 - [x] Migrate from IDs to UUIDs to prevent enumeration attacks

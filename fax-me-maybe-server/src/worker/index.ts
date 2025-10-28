@@ -13,17 +13,21 @@ function generateUUID(): string {
 // Initialize Hono
 const app = new Hono<{ Bindings: Env }>();
 
-// Enable rate limiting only if RATE_LIMITER is available
+// Enable rate limiting only if RATE_LIMITER is available, but bypass for API key requests
 app.use('/api/*', async (c, next) => {
-  // Only apply rate limiting if the binding is available and has the limit method
-  if (c.env.RATE_LIMITER && typeof c.env.RATE_LIMITER.limit === 'function') {
+  // Check if request has a valid API key - if so, bypass rate limiting
+  const apiKey = c.req.header("X-API-KEY");
+  const hasValidApiKey = apiKey && apiKey === c.env.HONO_API_KEY;
+  
+  // Only apply rate limiting if the binding is available and request doesn't have valid API key
+  if (!hasValidApiKey && c.env.RATE_LIMITER && typeof c.env.RATE_LIMITER.limit === 'function') {
     const rateLimitMiddleware = rateLimit({
       rateLimiter: (c) => c.env.RATE_LIMITER,
       getRateLimitKey: (c) => c.req.header('cf-connecting-ip') ?? 'unknown',
     });
     return rateLimitMiddleware(c, next);
   }
-  // If rate limiter is not available (e.g., in development), skip rate limiting
+  // If rate limiter is not available (e.g., in development) or has valid API key, skip rate limiting
   await next();
 });
 
