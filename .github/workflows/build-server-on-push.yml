@@ -16,20 +16,23 @@ jobs:
         - name: Checkout repository
           uses: actions/checkout@v5
 
-        - name: Change to server directory
-          run: cd fax-me-maybe-server
 
         - name: Install NodeJS
           uses: actions/setup-node@v6
           with:
             node-version: 24
             cache: 'npm'
+            cache-dependency-path: fax-me-maybe-server/package-lock.json
+
 
         - name: Run Vite Bundler
           run: npm run build
+          working-directory: fax-me-maybe-server
 
         - name: Build & Deploy Worker
           uses: cloudflare/wrangler-action@v3
           with:
+            wranglerVersion: '4.45.0'
             apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
             accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+            workingDirectory: fax-me-maybe-server
