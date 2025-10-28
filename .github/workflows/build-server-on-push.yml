@@ -26,7 +26,7 @@ jobs:
 
 
         - name: Run Vite Bundler
-          run: npm run build
+          run: npm install && npm run build
           working-directory: fax-me-maybe-server
 
         - name: Build & Deploy Worker
