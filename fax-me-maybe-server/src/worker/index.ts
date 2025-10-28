@@ -43,12 +43,13 @@ app.use("/api/*", async (c, next) => {
 	const path = c.req.path;
 	const method = c.req.method;
 
-	// Check if the path matches /api/todos/:id/complete pattern
+	// Check if the path matches /api/todos/:id/complete or /api/todos/:id pattern
 	const completeTodoPattern = /^\/api\/todos\/[^/]+\/complete$/;
+	const getTodoPattern = /^\/api\/todos\/[^/]+$/;
 
 	if (
 		(method === "POST" && path === "/api/todos") ||
-		(method === "GET" && (path === "/api/health" || path === "/api/todos/count" || completeTodoPattern.test(path)))
+		(method === "GET" && (path === "/api/health" || path === "/api/todos/count" || completeTodoPattern.test(path) || getTodoPattern.test(path)))
 	) {
 		return next();
 	}
@@ -278,7 +279,7 @@ app.get("/api/todos", async (c) => {
 	}
 });
 
-// Mark a TODO as complete
+// Mark a TODO as complete (must come before /api/todos/:id to avoid route collision)
 app.get("/api/todos/:id/complete", async (c) => {
 	try {
 		const id = c.req.param("id");
@@ -311,6 +312,38 @@ app.get("/api/todos/:id/complete", async (c) => {
 		console.error("Error marking TODO as complete:", error);
 		return c.json({
 			error: "Failed to mark TODO as complete",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
+// Get a single TODO by ID
+app.get("/api/todos/:id", async (c) => {
+	try {
+		const id = c.req.param("id");
+
+		if (!id || id.trim() === "") {
+			return c.json({ error: "Invalid TODO ID" }, 400);
+		}
+
+		// Fetch the TODO
+		const todo = await c.env.faxmemaybe_db
+			.prepare("SELECT * FROM todos WHERE id = ?")
+			.bind(id)
+			.first();
+
+		if (!todo) {
+			return c.json({ error: "TODO not found" }, 404);
+		}
+
+		return c.json({
+			success: true,
+			todo: todo
+		});
+	} catch (error) {
+		console.error("Error fetching TODO:", error);
+		return c.json({
+			error: "Failed to fetch TODO",
 			message: error instanceof Error ? error.message : "Unknown error"
 		}, 500);
 	}

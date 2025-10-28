@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App.tsx";
 import TodoTicket from "./TodoTicket.tsx";
 import AdminDashboard from "./AdminDashboard.tsx";
+import ViewTodo from "./ViewTodo.tsx";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
 					<Route path="/" element={<App />} />
 					<Route path="/todo-ticket" element={<TodoTicket />} />
 					<Route path="/admin" element={<AdminDashboard />} />
+					<Route path="/view-todo" element={<ViewTodo />} />
 				</Routes>
 			</BrowserRouter>
 			<Toaster />
