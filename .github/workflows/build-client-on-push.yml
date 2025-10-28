@@ -31,7 +31,7 @@ jobs:
         - name: Build and push Docker image
           uses: docker/build-push-action@v6
           with:
-            context: .
+            context: fax-me-maybe-client
             platforms: linux/${{ matrix.arch }}
             push: true
             tags: ghcr.io/deadpackets/fax-me-maybe-client:latest

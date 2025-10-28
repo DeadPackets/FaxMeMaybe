@@ -5,3 +5,13 @@ services:
       container_name: fax-me-maybe-client
       env_file: .env
       restart: unless-stopped
+    watchtower:
+      image: containrrr/watchtower:latest
+      container_name: watchtower
+      environment:
+        TZ: "Asia/Dubai"
+        WATCHTOWER_CLEANUP: "true"
+        WATCHTOWER_POLL_INTERVAL: "300"
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+      restart: unless-stopped

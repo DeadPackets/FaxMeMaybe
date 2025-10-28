@@ -1,5 +1,18 @@
+# TODO
+
 - [ ] Reach v1.0 milestone
 - [ ] Document everything in README
+- [ ] Build an OSX menu bar app using Tauri
+- [ ] Build an iOS Shortcut extension to quickly add tasks from anywhere
+- [ ] Improve n8n workflows to automatically create tasks from various sources (like emails, messages, etc) with gemini-2.5-flash
+- [ ] Add versioning for the client and API, autoincrementing with each push to main
+- [ ] Build admin dashboard to view stats and manage tasks
+- [ ] Requests made with API key should bypass rate limits
+
+# DONE
+- [x] Add OpenGraph metadata for better link previews
+- [x] Add a favicon
+- [x] Migrate from IDs to UUIDs to prevent enumeration attacks
 - [x] Github Actions CI/CD to automate pushes to Cloudflare Workers/Dockerhub
 - [x] Add a column in the database for tracking completion
 - [x] Add Hono API route to mark tasks as complete
@@ -7,10 +20,4 @@
 - [x] Add Hono API route to delete tasks
 - [x] Add QR code in TodoTicket.tsx to mark as complete
 - [x] Use Cloudflare Browser Rendering to render TodoTicket.tsx and store rendered image in R2
-- [ ] Let Docker client automatically pull latest images
-- [ ] Build an OSX menu bar app using Tauri
-- [ ] Build an iOS Shortcut extension to quickly add tasks from anywhere
-- [ ] Improve n8n workflows to automatically create tasks from various sources (like emails, messages, etc) with gemini-2.5-flash
-- [x] Add OpenGraph metadata for better link previews
-- [x] Add a favicon
-- [x] Migrate from IDs to UUIDs to prevent enumeration attacks
+- [x] Let Docker client automatically pull latest images
