@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 
 interface FirstBloodReceiptProps {
 	username?: string;
-	track?: string;
 	challenge?: string;
 	points?: string;
 	category?: string;
+	logo_url?: string;
+	ctf_name?: string;
 }
 
 function FirstBloodReceipt() {
@@ -17,10 +18,11 @@ function FirstBloodReceipt() {
 
 		setParams({
 			username: urlParams.get("username") || "CyberNinja_2025",
-			track: urlParams.get("track") || "Web Exploitation",
 			challenge: urlParams.get("challenge") || "SQL Injection Master",
 			points: urlParams.get("points") || "500",
 			category: urlParams.get("category") || "Web",
+			logo_url: urlParams.get("logo_url") || "https://i.imgur.com/0JLelri.png",
+			ctf_name: urlParams.get("ctf_name") || "DUBAI POLICE CTF 2025",
 		});
 
 		// Add print styles optimized for thermal printer with monospace terminal font
@@ -79,8 +81,8 @@ function FirstBloodReceipt() {
 			{/* Logo */}
 			<div className="mb-6 text-center">
 				<img
-					src="https://i.imgur.com/0JLelri.png"
-					alt="CTFAE"
+					src={params.logo_url}
+					alt="CTF Logo"
 					style={{ height: "80px", objectFit: "contain", margin: "0 auto" }}
 				/>
 			</div>
@@ -153,7 +155,7 @@ function FirstBloodReceipt() {
 				<pre className="text-sm" style={{ margin: 0 }}>
 {`+----------------------------------------------------------+
 | [+] STATUS: SUCCESS                                      |
-| [i] DUBAI POLICE CTF 2025                                |
+| [i] ${(params.ctf_name || "").toUpperCase().padEnd(51, " ")}|
 | [*] ${getCurrentTime()}                               |
 +----------------------------------------------------------+`}
 				</pre>

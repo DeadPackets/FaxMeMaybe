@@ -48,7 +48,7 @@ app.use("/api/*", async (c, next) => {
 	const getTodoPattern = /^\/api\/todos\/[^/]+$/;
 
 	if (
-		(method === "POST" && path === "/api/todos") ||
+		(method === "POST" && (path === "/api/todos" || path === "/api/first-bloods")) ||
 		(method === "GET" && (path === "/api/health" || path === "/api/todos/count" || completeTodoPattern.test(path) || getTodoPattern.test(path)))
 	) {
 		return next();
@@ -427,6 +427,106 @@ app.delete("/api/todos/:id", async (c) => {
 
 // Health check endpoint
 app.get("/api/health", (c) => c.json({ status: "ok" }));
+
+// Type definitions for First Blood submission
+interface FirstBloodSubmission {
+	username: string;
+	challenge: string;
+	category: string;
+	points: number;
+	logo_url: string;
+	ctf_name: string;
+}
+
+// API endpoint to submit First Bloods
+app.post("/api/first-bloods", async (c) => {
+	try {
+		const body = await c.req.json<FirstBloodSubmission>();
+
+		// Validate required fields
+		if (!body.username || !body.username.trim()) {
+			return c.json({ error: "Username is required" }, 400);
+		}
+
+		if (!body.challenge || !body.challenge.trim()) {
+			return c.json({ error: "Challenge is required" }, 400);
+		}
+
+		if (!body.category || !body.category.trim()) {
+			return c.json({ error: "Category is required" }, 400);
+		}
+
+		if (body.points === undefined || body.points === null) {
+			return c.json({ error: "Points is required" }, 400);
+		}
+
+		if (!Number.isInteger(body.points)) {
+			return c.json({ error: "Points must be an integer" }, 400);
+		}
+
+		if (!body.logo_url || !body.logo_url.trim()) {
+			return c.json({ error: "Logo URL is required" }, 400);
+		}
+
+		if (!body.ctf_name || !body.ctf_name.trim()) {
+			return c.json({ error: "CTF name is required" }, 400);
+		}
+
+		// Build the full external URL with GET parameters
+		const firstBloodUrl = new URL("https://remind.deadpackets.pw/first-blood-receipt");
+		firstBloodUrl.searchParams.set("username", body.username.trim());
+		firstBloodUrl.searchParams.set("challenge", body.challenge.trim());
+		firstBloodUrl.searchParams.set("category", body.category.trim());
+		firstBloodUrl.searchParams.set("points", body.points.toString());
+		firstBloodUrl.searchParams.set("logo_url", body.logo_url.trim());
+		firstBloodUrl.searchParams.set("ctf_name", body.ctf_name.trim());
+
+		// Push to AWS SQS for printer to pick up using aws4fetch
+		const aws = new AwsClient({
+			accessKeyId: c.env.AWS_ACCESS_KEY_ID,
+			secretAccessKey: c.env.AWS_SECRET_ACCESS_KEY,
+			region: c.env.AWS_REGION,
+		});
+
+		const messageId = generateUUID();
+		const sqsParams = new URLSearchParams({
+			Action: 'SendMessage',
+			MessageBody: firstBloodUrl.toString(),
+			MessageDeduplicationId: `first-blood-${messageId}-${Date.now()}`,
+			MessageGroupId: 'faxmemaybe-messages',
+			Version: '2012-11-05',
+		});
+
+		const sqsResponse = await aws.fetch(c.env.SQS_QUEUE_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: sqsParams.toString(),
+		});
+
+		if (!sqsResponse.ok) {
+			const errorText = await sqsResponse.text();
+			console.error("Failed to send message to SQS:", errorText);
+			return c.json({
+				success: false,
+				message: "Failed to enqueue First Blood for printing",
+				error: errorText
+			}, 500);
+		}
+
+		return c.json({
+			success: true,
+			message: "First Blood sent successfully!"
+		});
+	} catch (error) {
+		console.error("Error processing First Blood:", error);
+		return c.json({
+			error: "Failed to process First Blood",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
 
 export default app;
 
