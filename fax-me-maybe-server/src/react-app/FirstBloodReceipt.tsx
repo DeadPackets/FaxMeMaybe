@@ -5,6 +5,7 @@ interface FirstBloodReceiptProps {
 	track?: string;
 	challenge?: string;
 	points?: string;
+	category?: string;
 }
 
 function FirstBloodReceipt() {
@@ -19,6 +20,7 @@ function FirstBloodReceipt() {
 			track: urlParams.get("track") || "Web Exploitation",
 			challenge: urlParams.get("challenge") || "SQL Injection Master",
 			points: urlParams.get("points") || "500",
+			category: urlParams.get("category") || "Web",
 		});
 
 		// Add print styles optimized for thermal printer with monospace terminal font
@@ -68,57 +70,45 @@ function FirstBloodReceipt() {
 	};
 
 	return (
-		<div className="w-full bg-white text-black p-8" style={{
+		<div className="w-full bg-white text-black border-4 border-black p-12" style={{
 			maxWidth: "576px",
 			fontFamily: "'Courier New', 'Courier', 'Monaco', monospace",
-			fontSize: "14px",
-			lineHeight: "1.4"
+			fontSize: "16px",
+			lineHeight: "1.5"
 		}}>
 			{/* Logo */}
-			<div className="mb-4" style={{ paddingLeft: "120px" }}>
+			<div className="mb-6 text-center">
 				<img
 					src="https://i.imgur.com/0JLelri.png"
 					alt="CTFAE"
-					style={{ height: "40px", objectFit: "contain" }}
+					style={{ height: "80px", objectFit: "contain", margin: "0 auto" }}
 				/>
 			</div>
 
-			{/* ASCII Header and Title */}
-			<div className="mb-6">
-				<pre style={{ margin: 0, fontSize: "11px", lineHeight: "1.2" }}>
-{`/==============================================\\`}
-				</pre>
-			</div>
 
 			{/* Title */}
-			<div className="mb-2" style={{ paddingLeft: "20px" }}>
-				<div className="text-2xl font-bold">
+			<div className="mb-2 text-center">
+				<div className="text-3xl font-bold">
 					&gt;&gt;&gt; FIRST BLOOD &lt;&lt;&lt;
 				</div>
 			</div>
 
 			{/* Subtitle */}
-			<div className="mb-6" style={{ paddingLeft: "50px" }}>
-				<div className="text-base">
+			<div className="mb-6 text-center">
+				<div className="text-lg">
 					[ Achievement Receipt ]
 				</div>
 			</div>
 
-			{/* Separator */}
-			<div className="mb-6">
-				<pre style={{ margin: 0, fontSize: "11px", lineHeight: "1.2" }}>
-{`- - - - - - - - - - - - - - - - - - - - - - - -`}
-				</pre>
-			</div>
 
 			{/* Player Info */}
 			{params.username && (
 				<div className="mb-4">
-					<div className="text-xs mb-1">
+					<div className="text-lg mb-1">
 						$ PLAYER:
 					</div>
-					<div className="pl-4 text-base font-bold">
-						└─ {params.username}
+					<div className="pl-4 text-2xl font-bold">
+						└─ {params.username?.toUpperCase()}
 					</div>
 				</div>
 			)}
@@ -126,31 +116,33 @@ function FirstBloodReceipt() {
 			{/* Challenge Info */}
 			{params.challenge && (
 				<div className="mb-4">
-					<div className="text-xs mb-1">
+					<div className="text-lg mb-1">
 						$ CHALLENGE:
 					</div>
-					<div className="pl-4 text-base font-bold break-words">
-						└─ {params.challenge}
+					<div className="pl-4 text-2xl font-bold break-words">
+						└─ {params.challenge?.toUpperCase()}
 					</div>
 				</div>
 			)}
 
-			{/* CTF and Points Grid */}
-			<div className="mb-4">
-				<div className="text-xs mb-1">
-					$ CTF_NAME:
+			{/* Category */}
+			{params.category && (
+				<div className="mb-4">
+					<div className="text-lg mb-1">
+						$ CATEGORY:
+					</div>
+					<div className="pl-4 text-2xl font-bold">
+						└─ {params.category.toUpperCase()}
+					</div>
 				</div>
-				<div className="pl-4 text-base font-bold">
-					└─ Dubai Police CTF 2025
-				</div>
-			</div>
+			)}
 
 			{params.points && (
 				<div className="mb-6">
-					<div className="text-xs mb-1">
+					<div className="text-lg mb-1">
 						$ POINTS:
 					</div>
-					<div className="pl-4 text-lg font-bold">
+					<div className="pl-4 text-2xl font-bold">
 						└─ +{params.points} PTS
 					</div>
 				</div>
@@ -158,24 +150,15 @@ function FirstBloodReceipt() {
 
 			{/* Status Box */}
 			<div className="mb-6">
-				<pre className="text-xs" style={{ margin: 0 }}>
-{`+-------------------------------------------+
-| [+] STATUS: SUCCESS                       |
-| [i] The first to solve this challenge! 	|
-+-------------------------------------------+`}
+				<pre className="text-sm" style={{ margin: 0 }}>
+{`+----------------------------------------------------------+
+| [+] STATUS: SUCCESS                                      |
+| [i] DUBAI POLICE CTF 2025                                |
+| [*] ${getCurrentTime()}                               |
++----------------------------------------------------------+`}
 				</pre>
 			</div>
 
-			{/* Footer and Bottom Border */}
-			<div>
-				<pre style={{ margin: 0, fontSize: "11px", lineHeight: "1.2" }}>
-{`- - - - - - - - - - - - - - - - - - - - - - - -
-
-     Generated: ${getCurrentTime()}
-
-\\==============================================/`}
-				</pre>
-			</div>
 		</div>
 	);
 }
