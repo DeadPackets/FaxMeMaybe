@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 import time
 import tempfile
 from datetime import datetime
@@ -11,9 +10,10 @@ from dotenv import load_dotenv
 from escpos import printer
 import usb.core
 import usb.util
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import requests
+
 from PIL import Image
+
 
 # USB Printer Configuration
 VENDOR_ID = 0x0483
@@ -38,7 +38,9 @@ def find_usb_endpoints(vendor_id: int, product_id: int) -> tuple[int, int]:
     device = usb.core.find(idVendor=vendor_id, idProduct=product_id)
 
     if device is None:
-        raise ValueError(f"USB device not found (Vendor: 0x{vendor_id:04x}, Product: 0x{product_id:04x})")
+        raise ValueError(
+            f"USB device not found (Vendor: 0x{vendor_id:04x}, Product: 0x{product_id:04x})"
+        )
 
     # Get the active configuration
     try:
@@ -80,90 +82,16 @@ def find_usb_endpoints(vendor_id: int, product_id: int) -> tuple[int, int]:
 # Find endpoints dynamically
 try:
     in_endpoint, out_endpoint = find_usb_endpoints(VENDOR_ID, PRODUCT_ID)
-    p = printer.Usb(idVendor=VENDOR_ID, idProduct=PRODUCT_ID, in_ep=in_endpoint, out_ep=out_endpoint)
+    p = printer.Usb(
+        idVendor=VENDOR_ID, idProduct=PRODUCT_ID, in_ep=in_endpoint, out_ep=out_endpoint
+    )
 except ValueError as e:
     print(f"Warning: {e}", file=sys.stderr)
-    print("Printer initialization will be skipped. Messages will only be displayed on screen.\n", file=sys.stderr)
+    print(
+        "Printer initialization will be skipped. Messages will only be displayed on screen.\n",
+        file=sys.stderr,
+    )
     p = None
-
-# Global Selenium driver instance
-driver = None
-
-
-def init_selenium_driver():
-    """Initialize a global Selenium Chrome driver with headless options."""
-    global driver
-
-    if driver is not None:
-        return driver
-
-    print("Initializing Selenium Chrome driver...")
-
-    chrome_options = Options()
-    chrome_options.add_argument('--headless')
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
-    chrome_options.add_argument('--window-size=576,800')
-
-    try:
-        driver = webdriver.Chrome(options=chrome_options)
-        print("✓ Selenium driver initialized successfully\n")
-        return driver
-    except Exception as e:
-        print(f"Error initializing Selenium driver: {e}", file=sys.stderr)
-        print("Webpage rendering will be disabled.\n", file=sys.stderr)
-        return None
-
-
-def cleanup_selenium_driver():
-    """Clean up the Selenium driver on shutdown."""
-    global driver
-    if driver is not None:
-        print("Closing Selenium driver...")
-        driver.quit()
-        driver = None
-
-
-def render_webpage_to_image(url: str, output_path: str, width: int = 800, height: int = 600) -> bool:
-    """
-    Render a webpage to an image file using Selenium.
-
-    Args:
-        url: The URL to render
-        output_path: Path to save the screenshot
-        width: Browser width in pixels
-        height: Browser height in pixels
-
-    Returns:
-        True if successful, False otherwise
-    """
-    global driver
-
-    if driver is None:
-        driver = init_selenium_driver()
-        if driver is None:
-            return False
-
-    try:
-        print(f"Rendering webpage: {url}")
-
-        # Navigate to the URL
-        driver.get(url)
-
-        # Wait for the page to load (you can adjust the timeout)
-        time.sleep(2)  # Simple wait, can be replaced with WebDriverWait
-
-        # Take screenshot
-        driver.save_screenshot(output_path)
-
-        print(f"✓ Screenshot saved to: {output_path}")
-        return True
-
-    except Exception as e:
-        print(f"Error rendering webpage: {e}", file=sys.stderr)
-        return False
-
 
 def print_image_to_thermal(image_path: str) -> bool:
     """
@@ -180,28 +108,20 @@ def print_image_to_thermal(image_path: str) -> bool:
         return False
 
     try:
-        print(f"Printing image to thermal printer...")
+        print(f"Printing image ({image_path}) to thermal printer...")
 
         # Open the image and convert to a format suitable for thermal printing
         img = Image.open(image_path)
 
-        # Resize image to fit thermal printer width (typically 384 or 576 pixels)
-        # Adjust this based on your printer's specifications
-        printer_width = 576  # Common thermal printer width
-        aspect_ratio = img.height / img.width
-        new_height = int(printer_width * aspect_ratio)
-        img = img.resize((printer_width, new_height), Image.Resampling.LANCZOS)
-
         # Convert to grayscale for better thermal printing
-        img = img.convert('L')
+        img = img.convert("L")
 
         # Save the processed image temporarily
-        processed_path = image_path.replace('.png', '_processed.png')
+        processed_path = image_path.replace(".png", "_processed.png")
         img.save(processed_path)
 
         # Print the image
         p.image(processed_path)
-        p.text("\n\n")  # Add some spacing after the image
         p.cut()  # Cut the paper
 
         print(f"✓ Image printed successfully")
@@ -222,34 +142,19 @@ def print_image_to_thermal(image_path: str) -> bool:
 def get_sqs_client():
     """Create and return an SQS client with AWS credentials."""
     return boto3.client(
-        'sqs',
-        region_name=os.getenv('AWS_REGION', 'us-east-1'),
-        aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+        "sqs",
+        region_name=os.getenv("AWS_REGION", "us-east-1"),
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     )
 
 
 def format_message(message: dict) -> str:
     """Format a message for display."""
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    message_id = message.get('MessageId', 'Unknown')
-
-    try:
-        # Try to parse the body as JSON for pretty printing
-        body = json.loads(message.get('Body', '{}'))
-        body_str = json.dumps(body, indent=2)
-    except json.JSONDecodeError:
-        # If not JSON, just use the raw body
-        body_str = message.get('Body', '')
-
-    return f"""
-{'='*80}
-[{timestamp}] New Ticket Message
-Message ID: {message_id}
-{'='*80}
-{body_str}
-{'='*80}
-"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    message_id = message.get("MessageId", "Unknown")
+    body_str = message.get("Body", "")
+    return f"[{timestamp}] Message ID: {message_id} -> {body_str}"
 
 
 def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
@@ -268,9 +173,6 @@ def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
     print(f"Polling with {wait_time}s wait time")
     print(f"Press Ctrl+C to stop\n")
 
-    # Initialize Selenium driver at startup
-    init_selenium_driver()
-
     try:
         while True:
             try:
@@ -279,11 +181,11 @@ def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
                     QueueUrl=queue_url,
                     MaxNumberOfMessages=max_messages,
                     WaitTimeSeconds=wait_time,
-                    MessageAttributeNames=['All'],
-                    AttributeNames=['All']
+                    MessageAttributeNames=["All"],
+                    AttributeNames=["All"],
                 )
 
-                messages = response.get('Messages', [])
+                messages = response.get("Messages", [])
 
                 if messages:
                     for message in messages:
@@ -292,29 +194,36 @@ def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
 
                         # Render webpage and print to thermal printer
                         with tempfile.TemporaryDirectory() as tmpdir:
-                            screenshot_path = os.path.join(tmpdir, 'ticket_screenshot.png')
+                            screenshot_path = os.path.join(
+                                tmpdir, "ticket_screenshot.png"
+                            )
 
-                            # Render the webpage
-                            if render_webpage_to_image('https://remind.deadpackets.pw/todo-ticket?todo=this+is+a+great+test&importance=3&dueDate=2025-10-09&from=a+great+guy&timestamp=2025-10-24T10%3A12%3A13.921Z', screenshot_path):
-                                # Print to thermal printer
-                                print_image_to_thermal(screenshot_path)
-                            else:
-                                print("Warning: Failed to render webpage", file=sys.stderr)
+                            # Download the ticket from R2
+                            ticket_url = message.get("Body", "").strip()
+                            response = requests.get(url=f"{os.getenv('TICKETS_BUCKET_URL')}/{ticket_url}")
+                            with open(screenshot_path, "wb") as f:
+                                f.write(response.content)
+
+                            # Print to thermal printer
+                            print_image_to_thermal(screenshot_path)
 
                         # Delete the message from the queue
-                        receipt_handle = message['ReceiptHandle']
+                        receipt_handle = message["ReceiptHandle"]
                         sqs.delete_message(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=receipt_handle
+                            QueueUrl=queue_url, ReceiptHandle=receipt_handle
                         )
                         print(f"✓ Message processed and deleted from queue\n")
                 else:
                     # No messages received (timeout reached)
-                    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] No new messages, continuing to poll...")
+                    print(
+                        f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] No new messages, continuing to poll..."
+                    )
 
             except ClientError as e:
-                error_code = e.response.get('Error', {}).get('Code', 'Unknown')
-                error_message = e.response.get('Error', {}).get('Message', 'Unknown error')
+                error_code = e.response.get("Error", {}).get("Code", "Unknown")
+                error_message = e.response.get("Error", {}).get(
+                    "Message", "Unknown error"
+                )
                 print(f"AWS Error ({error_code}): {error_message}", file=sys.stderr)
                 print("Retrying in 5 seconds...", file=sys.stderr)
                 time.sleep(5)
@@ -326,7 +235,6 @@ def poll_queue(queue_url: str, wait_time: int = 20, max_messages: int = 1):
 
     except KeyboardInterrupt:
         print("\n\nShutting down ticket listener...")
-        cleanup_selenium_driver()
         print("Goodbye!")
         sys.exit(0)
 
@@ -336,21 +244,29 @@ def main():
     load_dotenv()
 
     # Get queue URL from environment variable
-    queue_url = os.getenv('SQS_QUEUE_URL')
+    queue_url = os.getenv("SQS_QUEUE_URL")
 
     if not queue_url:
         print("Error: SQS_QUEUE_URL environment variable is not set", file=sys.stderr)
-        print("\nPlease create a .env file with the following variables:", file=sys.stderr)
-        print("  SQS_QUEUE_URL=https://sqs.region.amazonaws.com/account-id/queue-name", file=sys.stderr)
+        print(
+            "\nPlease create a .env file with the following variables:", file=sys.stderr
+        )
+        print(
+            "  SQS_QUEUE_URL=https://sqs.region.amazonaws.com/account-id/queue-name",
+            file=sys.stderr,
+        )
         print("  AWS_REGION=us-east-1", file=sys.stderr)
         print("  AWS_ACCESS_KEY_ID=your_access_key", file=sys.stderr)
         print("  AWS_SECRET_ACCESS_KEY=your_secret_key", file=sys.stderr)
         sys.exit(1)
 
     # Validate AWS credentials
-    if not os.getenv('AWS_ACCESS_KEY_ID') or not os.getenv('AWS_SECRET_ACCESS_KEY'):
+    if not os.getenv("AWS_ACCESS_KEY_ID") or not os.getenv("AWS_SECRET_ACCESS_KEY"):
         print("Error: AWS credentials not found", file=sys.stderr)
-        print("Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your .env file", file=sys.stderr)
+        print(
+            "Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your .env file",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Start polling the queue
@@ -359,4 +275,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

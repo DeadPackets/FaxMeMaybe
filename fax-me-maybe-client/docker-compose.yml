@@ -1,7 +1,15 @@
 services:
     fax-me-maybe-client:
-      build: .
-      image: fax-me-maybe-client:latest
-      container_name: fax-me-maybe-client
+      image: ghcr.io/deadpackets/fax-me-maybe-client:latest
+      privileged: true
       env_file: .env
+      restart: unless-stopped
+    watchtower:
+      image: containrrr/watchtower:latest
+      environment:
+        TZ: "Asia/Dubai"
+        WATCHTOWER_CLEANUP: "true"
+        WATCHTOWER_POLL_INTERVAL: "300"
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
       restart: unless-stopped

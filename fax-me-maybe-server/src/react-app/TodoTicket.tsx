@@ -39,10 +39,11 @@ function TodoTicket() {
 
 		// Generate QR code if we have an ID
 		if (id) {
-			const completeUrl = `${window.location.origin}/api/todos/${id}/complete`;
-			QRCode.toDataURL(completeUrl, {
-				width: 200,
+			const viewTodoUrl = `${window.location.origin}/view-todo?id=${id}`;
+			QRCode.toDataURL(viewTodoUrl, {
+				width: 400,
 				margin: 2,
+				errorCorrectionLevel: 'H',
 				color: {
 					dark: '#000000',
 					light: '#FFFFFF'
@@ -171,17 +172,17 @@ function TodoTicket() {
 				</div>
 			)}
 
-			{/* QR Code for marking as complete */}
+			{/* QR Code for viewing and marking as complete */}
 			{params.id && qrCodeUrl && (
 				<div className="text-center mb-10">
 					<div className="flex flex-col items-center gap-4">
 						<img
 							src={qrCodeUrl}
-							alt="QR Code to mark as complete"
-							className="w-48 h-48 border-2 border-black"
+							alt="QR Code to view and mark as complete"
+							className="w-96 h-96 border-2 border-black"
 						/>
 						<div className="text-lg font-semibold">
-							Scan to Mark Complete
+							Scan to View & Complete
 						</div>
 					</div>
 				</div>

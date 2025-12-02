@@ -1,0 +1,38 @@
+name: Build Server on Push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - fax-me-maybe-server/**
+  workflow_dispatch:
+
+
+jobs:
+    build-server:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v5
+
+
+        - name: Install NodeJS
+          uses: actions/setup-node@v6
+          with:
+            node-version: 24
+            cache: 'npm'
+            cache-dependency-path: fax-me-maybe-server/package-lock.json
+
+
+        - name: Run Vite Bundler
+          run: npm install && npm run build
+          working-directory: fax-me-maybe-server
+
+        - name: Build & Deploy Worker
+          uses: cloudflare/wrangler-action@v3
+          with:
+            wranglerVersion: '4.45.0'
+            apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+            accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+            workingDirectory: fax-me-maybe-server

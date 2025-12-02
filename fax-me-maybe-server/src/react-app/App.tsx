@@ -1,5 +1,6 @@
 import { useState, FormEvent, ChangeEvent, useEffect } from "react";
-import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon, Printer } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon, Printer, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -178,7 +179,13 @@ function App() {
 	return (
 		<div className="min-h-screen flex items-center justify-center p-4">
 			<div className="w-full max-w-2xl">
-				<div className="flex justify-end mb-4">
+				<div className="flex justify-end mb-4 gap-2">
+					<Link to="/admin">
+						<Button variant="outline" size="icon">
+							<Settings className="h-[1.2rem] w-[1.2rem]" />
+							<span className="sr-only">Admin Dashboard</span>
+						</Button>
+					</Link>
 					<ModeToggle />
 				</div>
 				<div className="text-center mb-8">

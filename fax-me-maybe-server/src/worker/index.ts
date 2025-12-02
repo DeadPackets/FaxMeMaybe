@@ -2,21 +2,32 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from 'hono/secure-headers'
 import { rateLimit } from './rate-limit';
+import puppeteer from "@cloudflare/puppeteer";
+import { AwsClient } from 'aws4fetch'
 
+// UUID generation utility
+function generateUUID(): string {
+	return crypto.randomUUID();
+}
 
+// Initialize Hono
 const app = new Hono<{ Bindings: Env }>();
 
-// Enable rate limiting only if RATE_LIMITER is available
+// Enable rate limiting only if RATE_LIMITER is available, but bypass for API key requests
 app.use('/api/*', async (c, next) => {
-  // Only apply rate limiting if the binding is available and has the limit method
-  if (c.env.RATE_LIMITER && typeof c.env.RATE_LIMITER.limit === 'function') {
+  // Check if request has a valid API key - if so, bypass rate limiting
+  const apiKey = c.req.header("X-API-KEY");
+  const hasValidApiKey = apiKey && apiKey === c.env.HONO_API_KEY;
+  
+  // Only apply rate limiting if the binding is available and request doesn't have valid API key
+  if (!hasValidApiKey && c.env.RATE_LIMITER && typeof c.env.RATE_LIMITER.limit === 'function') {
     const rateLimitMiddleware = rateLimit({
       rateLimiter: (c) => c.env.RATE_LIMITER,
       getRateLimitKey: (c) => c.req.header('cf-connecting-ip') ?? 'unknown',
     });
     return rateLimitMiddleware(c, next);
   }
-  // If rate limiter is not available (e.g., in development), skip rate limiting
+  // If rate limiter is not available (e.g., in development) or has valid API key, skip rate limiting
   await next();
 });
 
@@ -28,8 +39,18 @@ app.use("/*", secureHeaders());
 
 // API Key authentication middleware - protect all routes except POST /api/todos
 app.use("/api/*", async (c, next) => {
-	// Skip authentication for POST /api/todos
-	if ((c.req.method === "POST" && c.req.path === "/api/todos") || (c.req.method === "GET" && (c.req.path === "/api/health" || c.req.path === "/api/todos/count"))) {
+	// Skip authentication for specific public endpoints
+	const path = c.req.path;
+	const method = c.req.method;
+
+	// Check if the path matches /api/todos/:id/complete or /api/todos/:id pattern
+	const completeTodoPattern = /^\/api\/todos\/[^/]+\/complete$/;
+	const getTodoPattern = /^\/api\/todos\/[^/]+$/;
+
+	if (
+		(method === "POST" && path === "/api/todos") ||
+		(method === "GET" && (path === "/api/health" || path === "/api/todos/count" || completeTodoPattern.test(path) || getTodoPattern.test(path)))
+	) {
 		return next();
 	}
 
@@ -102,11 +123,10 @@ app.post("/api/todos", async (c) => {
 			}
 		}
 
-        // Store TODO in D1 database
         /*
         // todos table schema
         CREATE TABLE todos (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id TEXT PRIMARY KEY,
           todo TEXT NOT NULL,
           importance INTEGER NOT NULL,
           source TEXT NOT NULL,
@@ -117,46 +137,78 @@ app.post("/api/todos", async (c) => {
           completed_at DATETIME
         );
          */
-        const result = await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (todo, importance, source, duedate, "from", created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from?.trim() || null, new Date().toISOString()).run();
-        console.log("TODO stored in database with ID:", result.meta.last_row_id);
+        // Generate UUID for the new TODO
+        const todoId = generateUUID();
 
-		// Get the n8n webhook URL from environment variable
-		const n8nUrl = c.env.N8N_WEBHOOK_URL;
+        // Store TODO in D1 database
+        await c.env.faxmemaybe_db.prepare(`INSERT INTO todos (id, todo, importance, source, duedate, "from", created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(todoId, body.todo.trim(), body.importance, body.source || "website", body.dueDate || null, body.from?.trim() || null, new Date().toISOString()).run();
+        console.log("TODO stored in database with ID:", todoId);
 
-		if (!n8nUrl) {
-			console.error("N8N_WEBHOOK_URL is not configured");
-			// Still return success to the user but log the error
-			return c.json({
-				success: true,
-				message: "TODO received (webhook not configured)"
-			});
-		}
+        // Use Puppeteer to visit a URL to process the TODO
+        let todoUrl = `https://remind.deadpackets.pw/todo-ticket?id=${todoId}&todo=${encodeURIComponent(body.todo.trim())}&importance=${body.importance}`;
+        if (body.dueDate) {
+            todoUrl += `&dueDate=${encodeURIComponent(body.dueDate)}`;
+        }
 
-		// Forward to n8n webhook
-		const response = await fetch(n8nUrl, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-                "X-API-KEY": c.env.N8N_API_KEY,
-			},
-			body: JSON.stringify({
-				id: result.meta.last_row_id,
-				importance: body.importance,
-				todo: body.todo,
-				dueDate: body.dueDate || null,
-				from: body.from || null,
-                source: body.source || "website",
-				created_at: new Date().toISOString(),
-			}),
-		});
+        if (body.from) {
+            todoUrl += `&from=${encodeURIComponent(body.from.trim())}`;
+        }
 
-		if (!response.ok) {
-			console.error("Failed to send to n8n:", response.statusText);
-			return c.json({
-				success: true,
-				message: "TODO received (webhook error)"
-			});
-		}
+        const browser = await puppeteer.launch(c.env.CLOUDFLARE_BROWSER);
+        const page = await browser.newPage();
+        await page.goto(todoUrl, { waitUntil: 'networkidle2' });
+        await page.waitForSelector('.text-5xl')
+        const ticketDiv = await page.waitForSelector('#root');
+        if (!ticketDiv) {
+            return c.json({
+                success: false,
+                message: "Failed to process TODO",
+                error: "Ticket element not found"
+            })
+        }
+        const img = await ticketDiv.screenshot({ type: 'png' });
+        await browser.close();
+
+        // Upload the screnshot to R2
+        const r2Key = `todo-tickets/todo-${todoId}.png`;
+        await c.env.TICKET_BUCKET.put(r2Key, img, {
+            httpMetadata: {
+                contentType: 'image/png'
+            }
+        });
+
+        // Push to AWS SQS for printer to pick up using aws4fetch
+        const aws = new AwsClient({
+            accessKeyId: c.env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: c.env.AWS_SECRET_ACCESS_KEY,
+            region: c.env.AWS_REGION,
+        });
+
+        const sqsParams = new URLSearchParams({
+            Action: 'SendMessage',
+            MessageBody: r2Key,
+            MessageDeduplicationId: `todo-${todoId}-${Date.now()}`,
+            MessageGroupId: 'faxmemaybe-messages',
+            Version: '2012-11-05',
+        });
+
+        const sqsResponse = await aws.fetch(c.env.SQS_QUEUE_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: sqsParams.toString(),
+        });
+
+        if (!sqsResponse.ok) {
+            const errorText = await sqsResponse.text();
+            console.error("Failed to send message to SQS:", errorText)
+            return c.json({
+                success: false,
+                message: "Failed to enqueue TODO for printing",
+                error: errorText
+            });
+        }
 
 		return c.json({
 			success: true,
@@ -227,19 +279,19 @@ app.get("/api/todos", async (c) => {
 	}
 });
 
-// Mark a TODO as complete
-app.patch("/api/todos/:id/complete", async (c) => {
+// Mark a TODO as complete (must come before /api/todos/:id to avoid route collision)
+app.get("/api/todos/:id/complete", async (c) => {
 	try {
 		const id = c.req.param("id");
 
-		if (!id || isNaN(parseInt(id))) {
+		if (!id || id.trim() === "") {
 			return c.json({ error: "Invalid TODO ID" }, 400);
 		}
 
 		// Check if TODO exists
 		const existing = await c.env.faxmemaybe_db
 			.prepare("SELECT id FROM todos WHERE id = ?")
-			.bind(parseInt(id))
+			.bind(id)
 			.first();
 
 		if (!existing) {
@@ -249,7 +301,7 @@ app.patch("/api/todos/:id/complete", async (c) => {
 		// Mark as complete
 		await c.env.faxmemaybe_db
 			.prepare("UPDATE todos SET completed = 1, completed_at = ? WHERE id = ?")
-			.bind(new Date().toISOString(), parseInt(id))
+			.bind(new Date().toISOString(), id)
 			.run();
 
 		return c.json({
@@ -265,19 +317,51 @@ app.patch("/api/todos/:id/complete", async (c) => {
 	}
 });
 
+// Get a single TODO by ID
+app.get("/api/todos/:id", async (c) => {
+	try {
+		const id = c.req.param("id");
+
+		if (!id || id.trim() === "") {
+			return c.json({ error: "Invalid TODO ID" }, 400);
+		}
+
+		// Fetch the TODO
+		const todo = await c.env.faxmemaybe_db
+			.prepare("SELECT * FROM todos WHERE id = ?")
+			.bind(id)
+			.first();
+
+		if (!todo) {
+			return c.json({ error: "TODO not found" }, 404);
+		}
+
+		return c.json({
+			success: true,
+			todo: todo
+		});
+	} catch (error) {
+		console.error("Error fetching TODO:", error);
+		return c.json({
+			error: "Failed to fetch TODO",
+			message: error instanceof Error ? error.message : "Unknown error"
+		}, 500);
+	}
+});
+
 // Mark a TODO as incomplete
 app.patch("/api/todos/:id/incomplete", async (c) => {
 	try {
 		const id = c.req.param("id");
 
-		if (!id || isNaN(parseInt(id))) {
+		if (!id || id.trim() === "") {
 			return c.json({ error: "Invalid TODO ID" }, 400);
 		}
 
 		// Check if TODO exists
 		const existing = await c.env.faxmemaybe_db
 			.prepare("SELECT id FROM todos WHERE id = ?")
-			.bind(parseInt(id))
+			.bind(id)
 			.first();
 
 		if (!existing) {
@@ -287,7 +371,7 @@ app.patch("/api/todos/:id/incomplete", async (c) => {
 		// Mark as incomplete
 		await c.env.faxmemaybe_db
 			.prepare("UPDATE todos SET completed = 0, completed_at = NULL WHERE id = ?")
-			.bind(parseInt(id))
+			.bind(id)
 			.run();
 
 		return c.json({
@@ -308,14 +392,14 @@ app.delete("/api/todos/:id", async (c) => {
 	try {
 		const id = c.req.param("id");
 
-		if (!id || isNaN(parseInt(id))) {
+		if (!id || id.trim() === "") {
 			return c.json({ error: "Invalid TODO ID" }, 400);
 		}
 
 		// Check if TODO exists
 		const existing = await c.env.faxmemaybe_db
 			.prepare("SELECT id FROM todos WHERE id = ?")
-			.bind(parseInt(id))
+			.bind(id)
 			.first();
 
 		if (!existing) {
@@ -325,7 +409,7 @@ app.delete("/api/todos/:id", async (c) => {
 		// Delete the TODO
 		await c.env.faxmemaybe_db
 			.prepare("DELETE FROM todos WHERE id = ?")
-			.bind(parseInt(id))
+			.bind(id)
 			.run();
 
 		return c.json({
