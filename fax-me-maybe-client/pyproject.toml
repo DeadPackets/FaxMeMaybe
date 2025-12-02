@@ -11,4 +11,5 @@ dependencies = [
     "python-escpos[usb]>=3.1",
     "pillow>=11.0.0",
     "requests>=2.32.5",
+    "selenium>=4.38.0",
 ]
