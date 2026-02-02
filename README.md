@@ -11,6 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Hono](https://img.shields.io/badge/Hono-4.10.3-E36002?style=for-the-badge&logo=hono&logoColor=white)](https://hono.dev/)
+[![Todoist](https://img.shields.io/badge/Todoist-E44332?style=for-the-badge&logo=todoist&logoColor=white)](https://todoist.com/)
 
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 [![GitHub Actions](https://img.shields.io/badge/GitHub-Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/features/actions)
@@ -50,11 +51,12 @@ Instead of using a simple note-taking app, FaxMeMaybe:
 
 1. 📝 Accepts TODOs through a beautiful web interface
 2. 🌐 Runs on the edge using Cloudflare Workers
-3. 🎨 Renders tickets using a headless browser (Puppeteer)
-4. 💾 Stores data in Cloudflare D1 (SQLite at the edge)
-5. 📤 Sends print jobs to AWS SQS
-6. 🍓 Polls messages on a Raspberry Pi
-7. 🖨️ Physically prints your TODO on a thermal printer
+3. 📋 Syncs with **Todoist** as the source of truth
+4. 🎨 Renders tickets using a headless browser (Puppeteer)
+5. 💾 Stores ID mappings in Cloudflare D1 (SQLite at the edge)
+6. 📤 Sends print jobs to AWS SQS
+7. 🍓 Polls messages on a Raspberry Pi
+8. 🖨️ Physically prints your TODO on a thermal printer
 
 **This is engineering for the sake of engineering, and I have learned alot from it!** 🎉
 
@@ -96,21 +98,21 @@ I did not know most of these technologies before starting this project. By combi
 │            │                │                │                   │
 │            ▼                ▼                ▼                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│  │  D1 Database│  │ R2 Storage  │  │  Puppeteer  │            │
-│  │   (SQLite)  │  │  (Tickets)  │  │  (Headless) │            │
+│  │   Todoist   │  │ R2 Storage  │  │  Puppeteer  │            │
+│  │  (Storage)  │  │  (Tickets)  │  │  (Headless) │            │
 │  └─────────────┘  └─────────────┘  └─────────────┘            │
-│                            │                                     │
-│                            ▼                                     │
-│                   ┌─────────────────┐                           │
-│                   │    AWS SQS      │                           │
-│                   │  Message Queue  │                           │
-│                   └─────────────────┘                           │
-│                            │                                     │
-│                            ▼                                     │
-│         ┌───────────────────────────────────┐                   │
-│         │  Raspberry Pi Client (Python)     │                   │
-│         │  • SQS Polling • Image Download   │                   │
-│         └───────────────────────────────────┘                   │
+│        │                  │                                      │
+│        │                  ▼                                      │
+│        │         ┌─────────────────┐                           │
+│        │         │    AWS SQS      │                           │
+│        │         │  Message Queue  │                           │
+│        │         └─────────────────┘                           │
+│        │                  │                                      │
+│        ▼                  ▼                                      │
+│  ┌─────────────┐  ┌───────────────────────────────────┐        │
+│  │ D1 Database │  │  Raspberry Pi Client (Python)     │        │
+│  │ (ID Mapping)│  │  • SQS Polling • Image Download   │        │
+│  └─────────────┘  └───────────────────────────────────┘        │
 │                            │                                     │
 │                            ▼                                     │
 │                   ┌─────────────────┐                           │
@@ -144,7 +146,8 @@ I did not know most of these technologies before starting this project. By combi
 |------------|-------------|-------------------|
 | ![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Serverless code running at the edge<br/>• Runs in 300+ cities worldwide<br/>• Auto-scaling, zero config<br/>• Pay only for what you use<br/>• <1ms cold starts | Your code living in the cloud, close to users, automatically scaling |
 | ![Hono](https://img.shields.io/badge/Hono-E36002?style=flat-square&logo=hono&logoColor=white) | Lightweight web framework<br/>• Express.js-like API<br/>• Built for edge runtimes<br/>• Middleware support<br/>• Ultra-fast routing | Express.js's speedy cousin built for the edge |
-| ![Cloudflare D1](https://img.shields.io/badge/Cloudflare_D1-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Serverless SQLite database<br/>• SQL database at the edge<br/>• Global replication<br/>• Zero-latency reads<br/>• Automatic backups | A spreadsheet in the cloud that you query with SQL |
+| ![Todoist](https://img.shields.io/badge/Todoist-E44332?style=flat-square&logo=todoist&logoColor=white) | Task management as a service<br/>• Full-featured TODO storage<br/>• Labels, priorities, due dates<br/>• Cross-platform sync<br/>• Powerful API | Your TODO database in the cloud with a beautiful UI |
+| ![Cloudflare D1](https://img.shields.io/badge/Cloudflare_D1-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Serverless SQLite database<br/>• Stores QR code → Todoist ID mappings<br/>• Global replication<br/>• Zero-latency reads<br/>• Automatic backups | A lightweight mapping table at the edge |
 | ![Cloudflare R2](https://img.shields.io/badge/Cloudflare_R2-F38020?style=flat-square&logo=cloudflare&logoColor=white) | Object storage (S3-compatible)<br/>• No egress fees<br/>• Global distribution<br/>• S3 API compatible<br/>• Stores our ticket images | A hard drive in the cloud — upload files, get URLs |
 | ![Puppeteer](https://img.shields.io/badge/Puppeteer-40B5A4?style=flat-square&logo=puppeteer&logoColor=white) | Headless browser automation<br/>• Chrome/Chromium control<br/>• Screenshot & PDF generation<br/>• Web scraping & testing<br/>• Renders our tickets | A robot that opens web pages and takes screenshots |
 
@@ -177,19 +180,33 @@ I did not know most of these technologies before starting this project. By combi
 - ✅ Beautiful, responsive React UI with dark/light mode
 - ✅ Real-time TODO submission with validation
 - ✅ Importance levels (Low, Medium, High, Urgent, Critical) with 🔥 indicators
-- ✅ Optional due dates and sender information
+- ✅ Optional due dates with natural language support ("tomorrow", "next Friday")
+- ✅ Optional sender information and description
+- ✅ Todoist label selection with color support
 - ✅ Live counter showing total TODOs sent
 - ✅ Admin dashboard for managing TODOs
 
+### 📋 Todoist Integration
+- ✅ Todoist as the source of truth for all TODOs
+- ✅ Automatic project creation ("FaxMeMaybe" project)
+- ✅ Label sync from your Todoist account
+- ✅ Priority mapping (importance levels → Todoist priorities)
+- ✅ Natural language due date parsing
+- ✅ Two-way sync via webhooks (optional)
+- ✅ Direct links to tasks in Todoist app
+
 ### 🎫 Ticket System
 - ✅ Automatic ticket generation with QR codes
+- ✅ Labels displayed on printed tickets
 - ✅ Printable ticket view optimized for thermal printers
 - ✅ QR code leads to ViewTodo page for easy completion tracking
 - ✅ Tickets stored as images in R2 storage
 
 ### 📱 ViewTodo Page
 - ✅ Access TODO details via QR code or direct link
-- ✅ Mark TODOs as complete with one click
+- ✅ View labels, description, and due dates
+- ✅ Mark TODOs as complete with one click (syncs to Todoist)
+- ✅ Direct link to open task in Todoist
 - ✅ Beautiful themed UI matching the main app
 - ✅ No authentication required (perfect for QR code access)
 
@@ -218,17 +235,18 @@ I did not know most of these technologies before starting this project. By combi
 
 ### 1️⃣ **User Creates a TODO**
 1. Visit `remind.deadpackets.pw`
-2. Fill out the TODO form (importance, message, due date, sender)
+2. Fill out the TODO form (importance, message, due date, labels, sender)
 3. Click "Send TODO"
 4. The form validates input and sends a POST request to the API
 
 ### 2️⃣ **Server Processes the Request**
 1. Cloudflare Worker receives the request
 2. Rate limiting checks (max 10 per minute)
-3. TODO is saved to D1 database with a unique UUID
-4. A headless browser (Puppeteer) renders a ticket page as an image
-5. The ticket image is uploaded to R2 storage
-6. A message is sent to AWS SQS with the image URL
+3. Task is created in Todoist (in "FaxMeMaybe" project)
+4. A mapping (QR UUID → Todoist ID) is saved to D1 database
+5. A headless browser (Puppeteer) renders a ticket page as an image
+6. The ticket image is uploaded to R2 storage
+7. A message is sent to AWS SQS with the image URL
 
 ### 3️⃣ **Raspberry Pi Polls for Jobs**
 1. Python client continuously polls SQS for new messages
@@ -239,9 +257,9 @@ I did not know most of these technologies before starting this project. By combi
 ### 4️⃣ **User Scans QR Code**
 1. The printed ticket includes a QR code
 2. Scanning it opens the ViewTodo page
-3. User can see full TODO details
-4. Clicking "Mark as Complete" updates the database
-5. The TODO is now tracked as done!
+3. User can see full TODO details (including labels and description)
+4. Clicking "Mark as Complete" updates Todoist
+5. The TODO is now tracked as done in both FaxMeMaybe and Todoist!
 
 ---
 
@@ -254,7 +272,9 @@ FaxMeMaybe/
 │   │   ├── 📂 worker/               # Hono backend (TypeScript)
 │   │   │   ├── index.ts             # Main API routes
 │   │   │   ├── rate-limit.ts        # Rate limiting middleware
-│   │   │   └── api.types.ts         # TypeScript type definitions
+│   │   │   ├── api.types.ts         # TypeScript type definitions
+│   │   │   └── 📂 services/
+│   │   │       └── todoist.ts       # Todoist API integration
 │   │   ├── 📂 react-app/            # React frontend
 │   │   │   ├── App.tsx              # Main TODO submission page
 │   │   │   ├── AdminDashboard.tsx   # Admin panel for managing TODOs
@@ -263,12 +283,15 @@ FaxMeMaybe/
 │   │   │   └── main.tsx             # React router setup
 │   │   ├── 📂 components/           # shadcn/ui components
 │   │   │   └── ui/                  # Reusable UI components
+│   │   │       ├── label-selector.tsx   # Todoist label picker
+│   │   │       └── smart-date-input.tsx # Natural language date input
 │   │   └── 📂 lib/
 │   │       └── utils.ts             # Utility functions
 │   ├── 📂 public/                   # Static assets
 │   │   ├── og-image.png             # OpenGraph preview image
 │   │   └── flame.svg                # Logo/icon
 │   ├── 📂 migrations/               # D1 database migrations
+│   │   └── 0001_todoist_integration.sql # Todoist mapping table
 │   ├── package.json                 # Node.js dependencies
 │   ├── wrangler.json                # Cloudflare Workers configuration
 │   ├── vite.config.ts               # Vite build configuration
@@ -311,9 +334,28 @@ FaxMeMaybe/
 - **`name`**: Your worker name
 - **`compatibility_date`**: Cloudflare runtime version
 - **`routes`**: Custom domain mapping
-- **`d1_databases`**: Database binding
+- **`d1_databases`**: Database binding (for ID mappings)
 - **`r2_buckets`**: Storage binding
 - **`browser`**: Puppeteer browser binding
+
+### Environment Variables / Secrets
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `TODOIST_API_TOKEN` | Your Todoist API token | Yes |
+| `TODOIST_PROJECT_NAME` | Todoist project name (default: "FaxMeMaybe") | No |
+| `TODOIST_WEBHOOK_SECRET` | Secret for webhook verification | No |
+| `HONO_API_KEY` | API key for protected endpoints | Yes |
+| `AWS_ACCESS_KEY_ID` | AWS credentials for SQS | Yes |
+| `AWS_SECRET_ACCESS_KEY` | AWS credentials for SQS | Yes |
+| `AWS_REGION` | AWS region for SQS | Yes |
+| `SQS_QUEUE_URL` | SQS queue URL | Yes |
+
+### Todoist Setup
+
+1. Get your API token from [Todoist Developer Settings](https://todoist.com/app/settings/integrations/developer)
+2. Set the secret: `wrangler secret put TODOIST_API_TOKEN`
+3. (Optional) Configure webhook at Todoist App Console pointing to `/api/webhooks/todoist`
 
 ### Rate Limiting
 
@@ -341,18 +383,22 @@ simple: {
 1. Visit your deployed site (e.g., `remind.deadpackets.pw`)
 2. Select importance level (🔥 Low → 🔥🔥🔥🔥🔥 Critical)
 3. Enter your TODO message (max 64 characters)
-4. (Optional) Set a due date
-5. (Optional) Add your name in "From" field
-6. Click **"Send TODO"**
-7. Your TODO is now in the queue!
+4. (Optional) Add a description (max 500 characters)
+5. (Optional) Set a due date (supports natural language like "tomorrow", "next Friday")
+6. (Optional) Select labels from your Todoist account
+7. (Optional) Add your name in "From" field
+8. Click **"Send TODO"**
+9. Your TODO is created in Todoist and queued for printing!
 
 ### Viewing TODOs (Admin)
 
 1. Navigate to `/admin`
-2. View all pending and completed TODOs
-3. Filter by completion status
-4. Mark items as complete/incomplete
-5. Delete TODOs
+2. View all pending and completed TODOs (synced from Todoist)
+3. See labels, descriptions, and due dates
+4. Filter by completion status or labels
+5. Mark items as complete/incomplete (syncs to Todoist)
+6. Open tasks directly in Todoist
+7. Delete TODOs
 
 ### Accessing via QR Code
 
@@ -365,17 +411,34 @@ simple: {
 
 #### Public Endpoints
 ```
-POST   /api/todos                    # Create new TODO
+POST   /api/todos                    # Create new TODO (syncs to Todoist)
 GET    /api/todos/count              # Get total TODO count
-GET    /api/todos/:id                # Get TODO by ID
-GET    /api/todos/:id/complete       # Mark TODO as complete
+GET    /api/todos/:id                # Get TODO by ID (fetches from Todoist)
+GET    /api/todos/:id/complete       # Mark TODO as complete (syncs to Todoist)
 ```
 
-#### Protected Endpoints (require auth)
+#### Protected Endpoints (require X-API-Key header)
 ```
-GET    /api/todos                    # List all TODOs
-PATCH  /api/todos/:id/incomplete     # Mark as incomplete
-DELETE /api/todos/:id                # Delete TODO
+GET    /api/todos                    # List all TODOs from Todoist
+GET    /api/labels                   # Get available Todoist labels
+PATCH  /api/todos/:id/incomplete     # Mark as incomplete (syncs to Todoist)
+DELETE /api/todos/:id                # Delete TODO (removes from Todoist)
+POST   /api/webhooks/todoist         # Todoist webhook receiver
+```
+
+#### Example: Create TODO with Labels
+```bash
+curl -X POST https://remind.deadpackets.pw/api/todos \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key" \
+  -d '{
+    "todo": "Review the design mockups",
+    "importance": 3,
+    "description": "Check the new landing page designs",
+    "dueDate": "next Friday",
+    "labels": ["work", "design"],
+    "from": "Design Team"
+  }'
 ```
 
 ---

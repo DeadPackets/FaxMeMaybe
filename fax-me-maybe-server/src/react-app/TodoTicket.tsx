@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Flame, Calendar, User } from "lucide-react";
+import { Flame, Calendar, User, Tag } from "lucide-react";
 import QRCode from "qrcode";
 
 const IMPORTANCE_LEVELS = [
@@ -17,6 +17,7 @@ interface TodoTicketProps {
 	dueDate?: string;
 	from?: string;
 	created_at?: string;
+	labels?: string[]; // Label names as comma-separated string in URL
 }
 
 function TodoTicket() {
@@ -27,6 +28,7 @@ function TodoTicket() {
 		// Parse URL parameters
 		const urlParams = new URLSearchParams(window.location.search);
 		const id = urlParams.get("id");
+		const labelsParam = urlParams.get("labels");
 
 		setParams({
 			id: id || undefined,
@@ -35,6 +37,7 @@ function TodoTicket() {
 			dueDate: urlParams.get("dueDate") || undefined,
 			from: urlParams.get("from") || undefined,
 			created_at: urlParams.get("created_at") || new Date().toISOString(),
+			labels: labelsParam ? labelsParam.split(",").filter(l => l.trim()) : undefined,
 		});
 
 		// Generate QR code if we have an ID
@@ -148,7 +151,24 @@ function TodoTicket() {
 				</div>
 			</div>
 
-			{/* 5. Due Date Subtext */}
+			{/* 5. Labels */}
+			{params.labels && params.labels.length > 0 && (
+				<div className="text-center mb-8">
+					<div className="flex justify-center items-center gap-3 flex-wrap">
+						<Tag className="w-6 h-6" strokeWidth={2} />
+						{params.labels.map((label, index) => (
+							<span
+								key={index}
+								className="px-4 py-2 border-2 border-black text-xl font-semibold"
+							>
+								{label}
+							</span>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* 6. Due Date Subtext */}
 			{params.dueDate && (
 				<div className="text-center mb-4">
 					<div className="flex justify-center items-center gap-3">
@@ -160,7 +180,7 @@ function TodoTicket() {
 				</div>
 			)}
 
-			{/* 6. Author/From Subtext */}
+			{/* 7. Author/From Subtext */}
 			{params.from && (
 				<div className="text-center mb-10">
 					<div className="flex justify-center items-center gap-3">
@@ -172,7 +192,7 @@ function TodoTicket() {
 				</div>
 			)}
 
-			{/* QR Code for viewing and marking as complete */}
+			{/* 8. QR Code for viewing and marking as complete */}
 			{params.id && qrCodeUrl && (
 				<div className="text-center mb-10">
 					<div className="flex flex-col items-center gap-4">
@@ -188,10 +208,10 @@ function TodoTicket() {
 				</div>
 			)}
 
-			{/* 7. Separator */}
+			{/* 9. Separator */}
 			<div className="border-t border-gray-300 mt-10 mb-6"></div>
 
-			{/* 8. Footer with created_at and branding */}
+			{/* 10. Footer with created_at and branding */}
 			<div className="text-center text-lg font-medium">
 				{formatTimestamp(params.created_at)} • Powered by FaxMeMaybe
 			</div>

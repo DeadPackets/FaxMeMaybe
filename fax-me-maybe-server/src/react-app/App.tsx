@@ -1,6 +1,6 @@
 import { useState, FormEvent, ChangeEvent, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon, Printer, Settings } from "lucide-react";
+import { Loader2, Send, Flame, CheckCircle2, Calendar, User, Copy, Code2, Sun, Moon, Printer, Settings, Tag, FileText, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTheme } from "@/components/theme-provider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { LabelSelector, type LabelOption } from "@/components/ui/label-selector";
+import { SmartDateInput } from "@/components/ui/smart-date-input";
 
 export function ModeToggle() {
   const { setTheme } = useTheme()
@@ -51,31 +53,51 @@ function App() {
 	const [formData, setFormData] = useState({
 		importance: 3,
 		todo: "",
+		description: "",
 		dueDate: "",
 		from: "",
+		labels: [] as string[],
 	});
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isSubmitted, setIsSubmitted] = useState(false);
-	const [todoCount, setTodoCount] = useState<number | null>(null);
-	const [isLoadingCount, setIsLoadingCount] = useState(true);
+	const [stats, setStats] = useState<{ pending: number; completed: number } | null>(null);
+	const [isLoadingStats, setIsLoadingStats] = useState(true);
+	const [availableLabels, setAvailableLabels] = useState<LabelOption[]>([]);
+	const [isLoadingLabels, setIsLoadingLabels] = useState(true);
 
-	// Fetch TODO count on component mount
+	// Fetch stats and labels on component mount
 	useEffect(() => {
-		fetchTodoCount();
+		fetchStats();
+		fetchLabels();
 	}, []);
 
-	const fetchTodoCount = async () => {
+	const fetchStats = async () => {
 		try {
-			setIsLoadingCount(true);
-			const response = await fetch("/api/todos/count");
+			setIsLoadingStats(true);
+			const response = await fetch("/api/todos/stats");
 			const data = await response.json();
 			if (response.ok && data.success) {
-				setTodoCount(data.count);
+				setStats(data.stats);
 			}
 		} catch (error) {
-			console.error("Error fetching TODO count:", error);
+			console.error("Error fetching stats:", error);
 		} finally {
-			setIsLoadingCount(false);
+			setIsLoadingStats(false);
+		}
+	};
+
+	const fetchLabels = async () => {
+		try {
+			setIsLoadingLabels(true);
+			const response = await fetch("/api/labels");
+			const data = await response.json();
+			if (response.ok && data.success) {
+				setAvailableLabels(data.labels);
+			}
+		} catch (error) {
+			console.error("Error fetching labels:", error);
+		} finally {
+			setIsLoadingLabels(false);
 		}
 	};
 
@@ -92,20 +114,14 @@ function App() {
 			return;
 		}
 
-		if (formData.from && formData.from.trim().length > 20) {
-			toast.error("From field must be 20 characters or less");
+		if (formData.description && formData.description.trim().length > 500) {
+			toast.error("Description must be 500 characters or less");
 			return;
 		}
 
-		if (formData.dueDate) {
-			const selectedDate = new Date(formData.dueDate);
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-
-			if (selectedDate < today) {
-				toast.error("Due date cannot be in the past");
-				return;
-			}
+		if (formData.from && formData.from.trim().length > 20) {
+			toast.error("From field must be 20 characters or less");
+			return;
 		}
 
 		setIsSubmitting(true);
@@ -119,8 +135,10 @@ function App() {
 				body: JSON.stringify({
 					importance: formData.importance,
 					todo: formData.todo,
+					description: formData.description || undefined,
 					dueDate: formData.dueDate || undefined,
 					from: formData.from || undefined,
+					labels: formData.labels.length > 0 ? formData.labels : undefined,
 				}),
 			});
 
@@ -130,16 +148,18 @@ function App() {
 				toast.success(data.message || "TODO sent successfully!");
 				setIsSubmitted(true);
 
-				// Refresh the count
-				fetchTodoCount();
+				// Refresh the stats
+				fetchStats();
 
 				// Reset form after 2 seconds
 				setTimeout(() => {
 					setFormData({
 						importance: 3,
 						todo: "",
+						description: "",
 						dueDate: "",
 						from: "",
+						labels: [],
 					});
 					setIsSubmitted(false);
 				}, 2000);
@@ -160,6 +180,7 @@ function App() {
 		params.set("importance", String(formData.importance));
 		if (formData.dueDate) params.set("dueDate", formData.dueDate);
 		if (formData.from) params.set("from", formData.from);
+		if (formData.labels.length > 0) params.set("labels", formData.labels.join(","));
 		params.set("created_at", new Date().toISOString());
 
 		return `${window.location.origin}/todo-ticket?${params.toString()}`;
@@ -193,25 +214,29 @@ function App() {
 						<Flame className="w-12 h-12 mr-2" />
 						<h1 className="text-5xl font-bold">FaxMeMaybe</h1>
 					</div>
-					<p className="text-lg">
-						Send me a TODO, I'll get to it... eventually.
-					</p>
+				<p className="text-lg text-muted-foreground">
+					Send me a TODO, I'll get to it... eventually.
+				</p>
 
-					{/* Stats Counter */}
-					<div className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-muted/50 border">
-						<CheckCircle2 className="w-5 h-5 text-green-500" />
-						<div className="text-sm">
-							<span className="font-bold text-2xl">
-								{isLoadingCount ? (
-									<Loader2 className="w-6 h-6 animate-spin inline" />
-								) : (
-									todoCount?.toLocaleString() || "0"
-								)}
-							</span>
-							<span className="ml-2 text-muted-foreground">
-								TODOs sent so far
-							</span>
-						</div>
+				{/* Stats Counter */}
+					<div className="mt-6 inline-flex items-center gap-4 px-6 py-3 rounded-full bg-muted/50 border">
+						{isLoadingStats ? (
+							<Loader2 className="w-5 h-5 animate-spin" />
+						) : (
+							<>
+								<div className="flex items-center gap-1.5">
+									<Clock className="w-4 h-4 text-yellow-500" />
+									<span className="font-bold">{stats?.pending?.toLocaleString() || "0"}</span>
+									<span className="text-muted-foreground text-sm">Pending</span>
+								</div>
+								<span className="text-muted-foreground">•</span>
+								<div className="flex items-center gap-1.5">
+									<CheckCircle2 className="w-4 h-4 text-green-500" />
+									<span className="font-bold">{stats?.completed?.toLocaleString() || "0"}</span>
+									<span className="text-muted-foreground text-sm">Completed</span>
+								</div>
+							</>
+						)}
 					</div>
 				</div>
 
@@ -261,20 +286,63 @@ function App() {
 									{formData.todo.length}/64
 								</span>
 							</Label>
-							<Textarea
+							<Input
 								id="todo"
-								placeholder="Describe the task or request..."
+								placeholder="Brief task description..."
 								value={formData.todo}
-								onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, todo: e.target.value })}
+								onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, todo: e.target.value })}
 								required
 								maxLength={64}
-								rows={4}
-								className="resize-none"
 							/>
 							{formData.todo.length > 60 && formData.todo.length <= 64 && (
 								<p className="text-xs text-yellow-600 dark:text-yellow-500">
 									{64 - formData.todo.length} characters remaining
 								</p>
+							)}
+						</div>
+
+						{/* Description */}
+						<div className="space-y-2">
+							<Label htmlFor="description" className="text-base flex items-center justify-between">
+								<span className="flex items-center gap-2">
+									<FileText className="w-4 h-4" />
+									Description <span className="text-xs">(optional)</span>
+								</span>
+								<span className={`text-xs ${formData.description.length > 500 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+									{formData.description.length}/500
+								</span>
+							</Label>
+							<Textarea
+								id="description"
+								placeholder="Add more details about the task..."
+								value={formData.description}
+								onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, description: e.target.value })}
+								maxLength={500}
+								rows={3}
+								className="resize-none"
+							/>
+						</div>
+
+						{/* Labels */}
+						<div className="space-y-2">
+							<Label className="text-base flex items-center gap-2">
+								<Tag className="w-4 h-4" />
+								Labels <span className="text-xs">(optional)</span>
+							</Label>
+							{isLoadingLabels ? (
+								<div className="flex items-center gap-2 text-sm text-muted-foreground">
+									<Loader2 className="w-4 h-4 animate-spin" />
+									Loading labels from Todoist...
+								</div>
+							) : (
+								<LabelSelector
+									labels={availableLabels}
+									selectedLabels={formData.labels}
+									onLabelsChange={(labels) => setFormData({ ...formData, labels })}
+									placeholder="Select or create labels..."
+									allowCustom={true}
+									maxLabels={5}
+								/>
 							)}
 						</div>
 
@@ -284,12 +352,10 @@ function App() {
 								<Calendar className="w-4 h-4" />
 								Due Date <span className="text-xs">(optional)</span>
 							</Label>
-							<Input
-								id="dueDate"
-								type="date"
+							<SmartDateInput
 								value={formData.dueDate}
-								onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dueDate: e.target.value })}
-								min={new Date().toISOString().split('T')[0]}
+								onChange={(dueDate) => setFormData({ ...formData, dueDate })}
+								placeholder="Enter date or 'tomorrow at 2pm'"
 							/>
 						</div>
 
@@ -396,7 +462,9 @@ function App() {
   -d '{
     "importance": 3,
     "todo": "Review the new feature",
-    "dueDate": "2025-10-30",
+    "description": "Check the implementation and provide feedback",
+    "dueDate": "tomorrow at 5pm",
+    "labels": ["work", "code-review"],
     "from": "API User"
   }'`;
 										navigator.clipboard.writeText(curlCommand);
@@ -414,11 +482,16 @@ function App() {
   -d '{
     "importance": 3,
     "todo": "Review the new feature",
-    "dueDate": "2025-10-30",
+    "description": "Check the implementation and provide feedback",
+    "dueDate": "tomorrow at 5pm",
+    "labels": ["work", "code-review"],
     "from": "API User"
   }'`}
 								</code>
 							</pre>
+							<p className="text-xs text-muted-foreground">
+								Due dates support natural language like "tomorrow", "next monday at 2pm", "in 3 days"
+							</p>
 						</div>
 					</CardContent>
 				</Card>
@@ -428,4 +501,3 @@ function App() {
 }
 
 export default App;
-

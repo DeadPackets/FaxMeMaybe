@@ -13,7 +13,10 @@ import {
 	RefreshCw,
 	LogOut,
 	Sun,
-	Moon
+	Moon,
+	ExternalLink,
+	Tag,
+	FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useTheme } from "@/components/theme-provider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function ModeToggle() {
 	const { setTheme } = useTheme();
@@ -54,16 +58,22 @@ function ModeToggle() {
 	);
 }
 
+// Updated interface to match Todoist data structure
 interface Todo {
 	id: string;
-	todo: string;
+	todoistId: string;
+	content: string;
+	description: string;
 	importance: number;
-	source: string;
-	duedate?: string;
+	labels: string[];
+	dueDate?: string;
+	dueString?: string;
 	from?: string;
-	created_at: string;
-	completed: number;
-	completed_at?: string;
+	source?: string;
+	completed: boolean;
+	completedAt?: string;
+	createdAt: string;
+	url: string;
 }
 
 interface Stats {
@@ -72,6 +82,7 @@ interface Stats {
 	pending: number;
 	byImportance: Record<number, number>;
 	bySource: Record<string, number>;
+	byLabel: Record<string, number>;
 }
 
 const IMPORTANCE_LEVELS = [
@@ -95,6 +106,7 @@ function AdminDashboard() {
 		pending: 0,
 		byImportance: {},
 		bySource: {},
+		byLabel: {},
 	});
 	const [activeTab, setActiveTab] = useState<"all" | "pending" | "completed">("all");
 
@@ -179,27 +191,33 @@ function AdminDashboard() {
 
 	const calculateStats = (todoList: Todo[]) => {
 		const total = todoList.length;
-		const completed = todoList.filter(t => t.completed === 1).length;
+		const completed = todoList.filter(t => t.completed).length;
 		const pending = total - completed;
 
 		const byImportance: Record<number, number> = {};
 		const bySource: Record<string, number> = {};
+		const byLabel: Record<string, number> = {};
 
 		todoList.forEach(todo => {
 			byImportance[todo.importance] = (byImportance[todo.importance] || 0) + 1;
-			bySource[todo.source] = (bySource[todo.source] || 0) + 1;
+			if (todo.source) {
+				bySource[todo.source] = (bySource[todo.source] || 0) + 1;
+			}
+			todo.labels?.forEach(label => {
+				byLabel[label] = (byLabel[label] || 0) + 1;
+			});
 		});
 
-		setStats({ total, completed, pending, byImportance, bySource });
+		setStats({ total, completed, pending, byImportance, bySource, byLabel });
 	};
 
 	const toggleComplete = async (todo: Todo) => {
 		try {
-			const endpoint = todo.completed === 1
+			const endpoint = todo.completed
 				? `/api/todos/${todo.id}/incomplete`
 				: `/api/todos/${todo.id}/complete`;
 
-			const method = todo.completed === 1 ? "PATCH" : "GET";
+			const method = todo.completed ? "PATCH" : "GET";
 
 			const response = await fetch(endpoint, {
 				method,
@@ -209,7 +227,7 @@ function AdminDashboard() {
 			});
 
 			if (response.ok) {
-				toast.success(todo.completed === 1 ? "Marked as incomplete" : "Marked as complete");
+				toast.success(todo.completed ? "Marked as incomplete" : "Marked as complete");
 				fetchTodos();
 			} else {
 				toast.error("Failed to update TODO");
@@ -278,8 +296,8 @@ function AdminDashboard() {
 	};
 
 	const filteredTodos = todos.filter(todo => {
-		if (activeTab === "pending") return todo.completed === 0;
-		if (activeTab === "completed") return todo.completed === 1;
+		if (activeTab === "pending") return !todo.completed;
+		if (activeTab === "completed") return todo.completed;
 		return true;
 	});
 
@@ -345,9 +363,12 @@ function AdminDashboard() {
 				<div className="flex items-center justify-between">
 					<div>
 						<h1 className="text-4xl font-bold">Admin Dashboard</h1>
-						<p className="text-muted-foreground mt-2">
-							Manage and monitor your TODOs
-						</p>
+						<div className="flex items-center gap-2 mt-2">
+							<p className="text-muted-foreground">
+								Manage and monitor your TODOs
+							</p>
+							<Badge variant="secondary">Powered by Todoist</Badge>
+						</div>
 					</div>
 					<div className="flex gap-2">
 						<ModeToggle />
@@ -420,7 +441,7 @@ function AdminDashboard() {
 				</div>
 
 				{/* Breakdown Stats */}
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 					<Card>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
@@ -453,12 +474,41 @@ function AdminDashboard() {
 						</CardHeader>
 						<CardContent>
 							<div className="space-y-2">
-								{Object.entries(stats.bySource).map(([source, count]) => (
-									<div key={source} className="flex items-center justify-between">
-										<span className="font-medium capitalize">{source}</span>
-										<Badge variant="secondary">{count}</Badge>
-									</div>
-								))}
+								{Object.keys(stats.bySource).length === 0 ? (
+									<p className="text-sm text-muted-foreground">No source data</p>
+								) : (
+									Object.entries(stats.bySource).map(([source, count]) => (
+										<div key={source} className="flex items-center justify-between">
+											<span className="font-medium capitalize">{source}</span>
+											<Badge variant="secondary">{count}</Badge>
+										</div>
+									))
+								)}
+							</div>
+						</CardContent>
+					</Card>
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<Tag className="w-5 h-5" />
+								By Label
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-2">
+								{Object.keys(stats.byLabel).length === 0 ? (
+									<p className="text-sm text-muted-foreground">No labels used</p>
+								) : (
+									Object.entries(stats.byLabel)
+										.sort((a, b) => b[1] - a[1])
+										.slice(0, 5)
+										.map(([label, count]) => (
+											<div key={label} className="flex items-center justify-between">
+												<span className="font-medium">{label}</span>
+												<Badge variant="secondary">{count}</Badge>
+											</div>
+										))
+								)}
 							</div>
 						</CardContent>
 					</Card>
@@ -469,7 +519,7 @@ function AdminDashboard() {
 					<CardHeader>
 						<CardTitle>All TODOs</CardTitle>
 						<CardDescription>
-							View and manage all submitted TODOs
+							View and manage all submitted TODOs (synced from Todoist)
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -498,7 +548,7 @@ function AdminDashboard() {
 												<TableRow>
 													<TableHead>TODO</TableHead>
 													<TableHead>Importance</TableHead>
-													<TableHead>Source</TableHead>
+													<TableHead>Labels</TableHead>
 													<TableHead>From</TableHead>
 													<TableHead>Due Date</TableHead>
 													<TableHead>Created</TableHead>
@@ -509,8 +559,25 @@ function AdminDashboard() {
 											<TableBody>
 												{filteredTodos.map((todo) => (
 													<TableRow key={todo.id}>
-														<TableCell className="font-medium max-w-xs truncate">
-															{todo.todo}
+														<TableCell className="font-medium max-w-xs">
+															<div className="space-y-1">
+																<div className="truncate">{todo.content}</div>
+																{todo.description && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<div className="flex items-center gap-1 text-xs text-muted-foreground cursor-help">
+																					<FileText className="w-3 h-3" />
+																					<span className="truncate max-w-[150px]">{todo.description}</span>
+																				</div>
+																			</TooltipTrigger>
+																			<TooltipContent className="max-w-sm">
+																				<p>{todo.description}</p>
+																			</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+															</div>
 														</TableCell>
 														<TableCell>
 															<div className="flex items-center gap-2">
@@ -519,9 +586,22 @@ function AdminDashboard() {
 															</div>
 														</TableCell>
 														<TableCell>
-															<Badge variant="outline" className="capitalize">
-																{todo.source}
-															</Badge>
+															{todo.labels && todo.labels.length > 0 ? (
+																<div className="flex flex-wrap gap-1">
+																	{todo.labels.slice(0, 2).map(label => (
+																		<Badge key={label} variant="outline" className="text-xs">
+																			{label}
+																		</Badge>
+																	))}
+																	{todo.labels.length > 2 && (
+																		<Badge variant="outline" className="text-xs">
+																			+{todo.labels.length - 2}
+																		</Badge>
+																	)}
+																</div>
+															) : (
+																<span className="text-muted-foreground">-</span>
+															)}
 														</TableCell>
 														<TableCell>
 															{todo.from ? (
@@ -534,20 +614,22 @@ function AdminDashboard() {
 															)}
 														</TableCell>
 														<TableCell>
-															{todo.duedate ? (
+															{todo.dueDate || todo.dueString ? (
 																<div className="flex items-center gap-1">
 																	<Calendar className="w-3 h-3" />
-																	<span className="text-sm">{formatDate(todo.duedate)}</span>
+																	<span className="text-sm">
+																		{todo.dueString || formatDate(todo.dueDate)}
+																	</span>
 																</div>
 															) : (
 																<span className="text-muted-foreground">-</span>
 															)}
 														</TableCell>
 														<TableCell className="text-sm text-muted-foreground">
-															{formatDateTime(todo.created_at)}
+															{formatDateTime(todo.createdAt)}
 														</TableCell>
 														<TableCell>
-															{todo.completed === 1 ? (
+															{todo.completed ? (
 																<Badge variant="default" className="bg-green-600">
 																	<CheckCircle2 className="w-3 h-3 mr-1" />
 																	Complete
@@ -561,12 +643,30 @@ function AdminDashboard() {
 														</TableCell>
 														<TableCell className="text-right">
 															<div className="flex items-center justify-end gap-2">
+																{todo.url && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="sm"
+																					onClick={() => window.open(todo.url, '_blank')}
+																				>
+																					<ExternalLink className="w-4 h-4" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>
+																				<p>Open in Todoist</p>
+																			</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
 																<Button
 																	variant="ghost"
 																	size="sm"
 																	onClick={() => toggleComplete(todo)}
 																>
-																	{todo.completed === 1 ? (
+																	{todo.completed ? (
 																		<XCircle className="w-4 h-4" />
 																	) : (
 																		<CheckCircle2 className="w-4 h-4" />
@@ -598,4 +698,3 @@ function AdminDashboard() {
 }
 
 export default AdminDashboard;
-

@@ -46,5 +46,8 @@
                 "period": 60
             }
         }
-    ]
+    ],
+    "vars": {
+        "TODOIST_PROJECT_NAME": "FaxMeMaybe"
+    }
 }

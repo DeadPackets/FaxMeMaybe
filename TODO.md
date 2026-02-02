@@ -7,8 +7,17 @@
 - [ ] Add versioning for the client and API, autoincrementing with each push to main
 - [ ] The README is a little... too much AI. Clean it up to be more human-readable.
 - [ ] Add cool useful badges and integrations into the README (like uptime, version, etc)
+- [ ] Configure Todoist webhook for real-time sync (item:added, item:completed, etc.)
 
 # DONE
+- [x] Integrate Todoist as backend storage (replaces D1 for task data)
+- [x] Add Todoist label support with color-coded picker
+- [x] Add natural language due date input ("tomorrow", "next Friday")
+- [x] Add description field to TODO form
+- [x] Display labels on thermal printer tickets
+- [x] Add "Open in Todoist" links throughout the app
+- [x] Update ViewTodo page with labels and description display
+- [x] Update AdminDashboard with Todoist data and label stats
 - [x] Document everything in README
 - [x] Build admin dashboard to view stats and manage tasks
 - [x] Requests made with API key should bypass rate limits

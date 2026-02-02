@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Flame, Calendar, User, CheckCircle2, Loader2, AlertCircle, Home } from "lucide-react";
+import { Flame, Calendar, User, CheckCircle2, Loader2, AlertCircle, Home, Tag, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 const IMPORTANCE_LEVELS = [
 	{ value: 1, label: "Low", count: 1 },
@@ -14,16 +15,26 @@ const IMPORTANCE_LEVELS = [
 	{ value: 5, label: "Critical", count: 5 },
 ] as const;
 
+interface TodoLabel {
+	id: string;
+	name: string;
+	color: string;
+}
+
 interface Todo {
 	id: string;
+	todoist_id: string;
 	todo: string;
+	description?: string;
 	importance: number;
 	source: string;
 	duedate?: string;
 	from?: string;
 	created_at: string;
-	completed: number;
+	completed: boolean;
 	completed_at?: string;
+	labels: TodoLabel[];
+	url?: string;
 }
 
 function ViewTodo() {
@@ -165,7 +176,7 @@ function ViewTodo() {
 		(level) => level.value === todo.importance
 	) || IMPORTANCE_LEVELS[2];
 
-	const isCompleted = todo.completed === 1;
+	const isCompleted = todo.completed === true;
 
 	return (
 		<div className="min-h-screen flex items-center justify-center p-4">
@@ -217,6 +228,45 @@ function ViewTodo() {
 								{todo.todo}
 							</h2>
 						</div>
+
+						{/* Description */}
+						{todo.description && (
+							<div className="py-2">
+								<div className="flex items-start gap-3">
+									<FileText className="w-5 h-5 mt-1 text-muted-foreground" />
+									<div className="flex-1">
+										<p className="text-sm text-muted-foreground mb-1">Description</p>
+										<p className="text-base whitespace-pre-wrap">{todo.description}</p>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Labels */}
+						{todo.labels && todo.labels.length > 0 && (
+							<div className="flex items-start gap-3">
+								<Tag className="w-5 h-5 mt-1 text-muted-foreground" />
+								<div className="flex-1">
+									<p className="text-sm text-muted-foreground mb-2">Labels</p>
+									<div className="flex flex-wrap gap-2">
+										{todo.labels.map((label) => (
+											<Badge
+												key={label.id}
+												variant="secondary"
+												style={{
+													backgroundColor: `${label.color}20`,
+													borderColor: label.color,
+													color: label.color,
+												}}
+												className="border"
+											>
+												{label.name}
+											</Badge>
+										))}
+									</div>
+								</div>
+							</div>
+						)}
 
 						{/* Due Date */}
 						{todo.duedate && (
@@ -276,10 +326,26 @@ function ViewTodo() {
 						)}
 
 						{/* Source Badge */}
-						<div className="pt-4 border-t">
+						<div className="pt-4 border-t flex items-center justify-between">
 							<p className="text-sm text-muted-foreground">
 								Source: <span className="font-medium">{todo.source}</span>
 							</p>
+							<div className="flex items-center gap-3">
+								{todo.url && (
+									<a
+										href={todo.url}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+									>
+										<ExternalLink className="w-3 h-3" />
+										Open in Todoist
+									</a>
+								)}
+								<span className="text-xs text-muted-foreground">
+									Powered by Todoist
+								</span>
+							</div>
 						</div>
 					</CardContent>
 				</Card>

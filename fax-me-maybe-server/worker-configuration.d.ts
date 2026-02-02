@@ -15,6 +15,10 @@ declare namespace Cloudflare {
 		faxmemaybe_db: D1Database;
 		RATE_LIMITER: RateLimit;
 		CLOUDFLARE_BROWSER: Fetcher;
+		// Todoist integration
+		TODOIST_API_TOKEN: string;
+		TODOIST_WEBHOOK_SECRET: string;
+		TODOIST_PROJECT_NAME: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
@@ -22,7 +26,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SQS_QUEUE_URL" | "AWS_REGION" | "AWS_ACCESS_KEY_ID" | "AWS_SECRET_ACCESS_KEY" | "HONO_API_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SQS_QUEUE_URL" | "AWS_REGION" | "AWS_ACCESS_KEY_ID" | "AWS_SECRET_ACCESS_KEY" | "HONO_API_KEY" | "TODOIST_API_TOKEN" | "TODOIST_WEBHOOK_SECRET" | "TODOIST_PROJECT_NAME">> {}
 }
 
 // Begin runtime types
