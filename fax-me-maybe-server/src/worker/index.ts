@@ -163,8 +163,8 @@ app.post("/api/todos", async (c) => {
 
 		// Use Puppeteer to generate the ticket image
 		let todoUrl = `https://remind.deadpackets.pw/todo-ticket?id=${todoId}&todo=${encodeURIComponent(body.todo.trim())}&importance=${body.importance}`;
-		if (body.dueDate) {
-			todoUrl += `&dueDate=${encodeURIComponent(body.dueDate)}`;
+		if (todoistTask.due?.date) {
+			todoUrl += `&dueDate=${encodeURIComponent(todoistTask.due.date)}`;
 		}
 
 		if (body.from) {
