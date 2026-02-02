@@ -28,7 +28,6 @@ interface LabelSelectorProps {
   onLabelsChange: (labels: string[]) => void;
   placeholder?: string;
   disabled?: boolean;
-  allowCustom?: boolean;
   maxLabels?: number;
 }
 
@@ -67,7 +66,6 @@ export function LabelSelector({
   onLabelsChange,
   placeholder = "Select labels...",
   disabled = false,
-  allowCustom = true,
   maxLabels = 5,
 }: LabelSelectorProps) {
   const [open, setOpen] = React.useState(false);
@@ -85,26 +83,11 @@ export function LabelSelector({
     onLabelsChange(selectedLabels.filter((l) => l !== labelName));
   };
 
-  const handleCreateCustom = () => {
-    const trimmed = inputValue.trim();
-    if (trimmed && !selectedLabels.includes(trimmed) && selectedLabels.length < maxLabels) {
-      onLabelsChange([...selectedLabels, trimmed]);
-      setInputValue("");
-    }
-  };
-
   const filteredLabels = labels.filter(
     (label) =>
       label.name.toLowerCase().includes(inputValue.toLowerCase()) &&
       !selectedLabels.includes(label.name)
   );
-
-  const showCreateOption =
-    allowCustom &&
-    inputValue.trim() &&
-    !labels.some((l) => l.name.toLowerCase() === inputValue.toLowerCase()) &&
-    !selectedLabels.includes(inputValue.trim()) &&
-    selectedLabels.length < maxLabels;
 
   return (
     <div className="space-y-2">
@@ -163,31 +146,12 @@ export function LabelSelector({
         <PopoverContent className="w-[300px] p-0" align="start">
           <Command>
             <CommandInput
-              placeholder="Search or create label..."
+              placeholder="Search labels..."
               value={inputValue}
               onValueChange={setInputValue}
             />
             <CommandList>
-              <CommandEmpty>
-                {showCreateOption ? (
-                  <button
-                    type="button"
-                    className="w-full px-2 py-1.5 text-left text-sm hover:bg-accent"
-                    onClick={handleCreateCustom}
-                  >
-                    Create "{inputValue.trim()}"
-                  </button>
-                ) : (
-                  "No labels found"
-                )}
-              </CommandEmpty>
-              {showCreateOption && filteredLabels.length > 0 && (
-                <CommandGroup heading="Create new">
-                  <CommandItem onSelect={handleCreateCustom}>
-                    Create "{inputValue.trim()}"
-                  </CommandItem>
-                </CommandGroup>
-              )}
+              <CommandEmpty>No labels found</CommandEmpty>
               {filteredLabels.length > 0 && (
                 <CommandGroup heading="Available labels">
                   {filteredLabels.map((label) => {

@@ -105,9 +105,11 @@ npm run deploy
 | `importance` | number | Yes | 1-5 (Low to Critical) |
 | `description` | string | No | Detailed description (max 500 chars) |
 | `dueDate` | string | No | Due date (ISO format or natural language) |
-| `labels` | string[] | No | Array of Todoist label names |
+| `labels` | string[] | No | Array of existing Todoist label names (validated on each request) |
 | `from` | string | No | Author name (max 20 chars) |
 | `source` | string | No | Source identifier (default: "website") |
+
+> **Note:** Only existing Todoist labels are allowed. Use `GET /api/labels` to fetch the list of valid labels.
 
 **Example with curl:**
 
@@ -180,11 +182,11 @@ curl -X POST https://remind.deadpackets.pw/api/todos \
 }
 ```
 
-### Get Labels (Protected)
+### Get Labels
 
 **Endpoint:** `GET /api/labels`
 
-**Headers:** `X-API-Key: your-api-key`
+Returns all available Todoist labels. This is a public endpoint (no authentication required).
 
 **Response:**
 
@@ -192,8 +194,8 @@ curl -X POST https://remind.deadpackets.pw/api/todos \
 {
   "success": true,
   "labels": [
-    { "id": "123", "name": "work", "color": "#ff0000" },
-    { "id": "456", "name": "personal", "color": "#00ff00" }
+    { "name": "work", "color": "blue" },
+    { "name": "personal", "color": "green" }
   ]
 }
 ```

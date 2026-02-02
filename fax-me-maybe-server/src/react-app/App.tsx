@@ -339,8 +339,7 @@ function App() {
 									labels={availableLabels}
 									selectedLabels={formData.labels}
 									onLabelsChange={(labels) => setFormData({ ...formData, labels })}
-									placeholder="Select or create labels..."
-									allowCustom={true}
+									placeholder="Select labels..."
 									maxLabels={5}
 								/>
 							)}

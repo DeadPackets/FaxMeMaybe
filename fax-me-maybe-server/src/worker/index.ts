@@ -115,14 +115,31 @@ app.post("/api/todos", async (c) => {
 			return c.json({ error: "Labels must be an array" }, 400);
 		}
 
-		// Generate our internal UUID for QR codes
-		const todoId = generateUUID();
-
 		// Initialize Todoist service
 		const todoist = new TodoistService(
 			c.env.TODOIST_API_TOKEN,
 			c.env.TODOIST_PROJECT_NAME || 'FaxMeMaybe'
 		);
+
+		// Validate labels against Todoist (only allow existing labels)
+		let validatedLabels: string[] = [];
+		if (body.labels && body.labels.length > 0) {
+			const todoistLabels = await todoist.getLabels();
+			const validLabelNames = new Set(todoistLabels.map(l => l.name.toLowerCase()));
+			
+			const invalidLabels = body.labels.filter(l => !validLabelNames.has(l.toLowerCase()));
+			if (invalidLabels.length > 0) {
+				return c.json({ 
+					error: `Invalid labels: ${invalidLabels.join(', ')}. Only existing Todoist labels are allowed.` 
+				}, 400);
+			}
+			
+			// Use the original casing from Todoist
+			validatedLabels = body.labels.filter(l => validLabelNames.has(l.toLowerCase()));
+		}
+
+		// Generate our internal UUID for QR codes
+		const todoId = generateUUID();
 
 		// Create task in Todoist
 		const taskParams: CreateTaskParams = {
@@ -130,7 +147,7 @@ app.post("/api/todos", async (c) => {
 			description: body.description?.trim(),
 			importance: body.importance,
 			dueString: body.dueDate, // Todoist handles natural language parsing
-			labels: body.labels,
+			labels: validatedLabels,
 			from: body.from?.trim(),
 			source: body.source || "website",
 		};
