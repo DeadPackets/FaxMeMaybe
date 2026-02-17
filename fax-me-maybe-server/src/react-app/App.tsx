@@ -119,8 +119,8 @@ function App() {
 			return;
 		}
 
-		if (formData.from && formData.from.trim().length > 20) {
-			toast.error("From field must be 20 characters or less");
+		if (formData.from && formData.from.trim().length > 40) {
+			toast.error("From field must be 40 characters or less");
 			return;
 		}
 
@@ -365,8 +365,8 @@ function App() {
 									<User className="w-4 h-4" />
 									From <span className="text-xs">(optional)</span>
 								</span>
-								<span className={`text-xs ${formData.from.length > 20 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
-									{formData.from.length}/20
+								<span className={`text-xs ${formData.from.length > 40 ? 'text-red-500 font-bold' : 'text-muted-foreground'}`}>
+									{formData.from.length}/40
 								</span>
 							</Label>
 							<Input
@@ -374,11 +374,11 @@ function App() {
 								placeholder="Your name or email"
 								value={formData.from}
 								onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, from: e.target.value })}
-								maxLength={20}
+								maxLength={40}
 							/>
-							{formData.from.length > 17 && formData.from.length <= 20 && (
+							{formData.from.length > 37 && formData.from.length <= 40 && (
 								<p className="text-xs text-yellow-600 dark:text-yellow-500">
-									{20 - formData.from.length} characters remaining
+									{40 - formData.from.length} characters remaining
 								</p>
 							)}
 						</div>

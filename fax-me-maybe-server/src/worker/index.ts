@@ -101,8 +101,8 @@ app.post("/api/todos", async (c) => {
 		}
 
 		// Validate from field length
-		if (body.from && body.from.trim().length > 20) {
-			return c.json({ error: "From field must be 20 characters or less" }, 400);
+		if (body.from && body.from.trim().length > 40) {
+			return c.json({ error: "From field must be 40 characters or less" }, 400);
 		}
 
 		// Validate description length
