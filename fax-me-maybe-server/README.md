@@ -106,7 +106,7 @@ npm run deploy
 | `description` | string | No | Detailed description (max 500 chars) |
 | `dueDate` | string | No | Due date (ISO format or natural language) |
 | `labels` | string[] | No | Array of existing Todoist label names (validated on each request) |
-| `from` | string | No | Author name (max 20 chars) |
+| `from` | string | No | Author name (max 40 chars) |
 | `source` | string | No | Source identifier (default: "website") |
 
 > **Note:** Only existing Todoist labels are allowed. Use `GET /api/labels` to fetch the list of valid labels.
