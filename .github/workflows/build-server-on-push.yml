@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - fax-me-maybe-server/**
+      - VERSION
   workflow_dispatch:
 
 
@@ -15,6 +16,10 @@ jobs:
       steps:
         - name: Checkout repository
           uses: actions/checkout@v5
+
+
+        - name: Set version
+          run: echo "VERSION=$(cat VERSION).${{ github.run_number }}" >> "$GITHUB_ENV"
 
 
         - name: Install NodeJS
@@ -36,3 +41,4 @@ jobs:
             apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
             accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
             workingDirectory: fax-me-maybe-server
+            command: deploy --var VERSION:${{ env.VERSION }}

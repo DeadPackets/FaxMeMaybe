@@ -44,13 +44,9 @@ app.use("/api/*", async (c, next) => {
 	const path = c.req.path;
 	const method = c.req.method;
 
-	// Check if the path matches /api/todos/:id/complete or /api/todos/:id pattern
-	const completeTodoPattern = /^\/api\/todos\/[^/]+\/complete$/;
-	const getTodoPattern = /^\/api\/todos\/[^/]+$/;
-
 	if (
 		(method === "POST" && (path === "/api/todos" || path === "/api/first-bloods" || path === "/api/webhooks/todoist")) ||
-		(method === "GET" && (path === "/api/health" || path === "/api/todos/count" || path === "/api/todos/stats" || path === "/api/labels" || completeTodoPattern.test(path) || getTodoPattern.test(path)))
+		(method === "GET" && (path === "/api/health" || path === "/api/todos/count" || path === "/api/todos/stats" || path === "/api/labels"))
 	) {
 		return next();
 	}
@@ -75,6 +71,65 @@ interface TodoSubmission {
 	from?: string;
 	labels?: string[];
 	source?: string;
+}
+
+// Tasks from other Todoist projects print only with this label
+const PRINT_LABEL = "print";
+
+interface TicketData {
+	todo: string;
+	importance: number;
+	dueDate?: string;
+	from?: string;
+	labels?: string[];
+	createdAt: string;
+	url: string;
+}
+
+// Render /todo-ticket at the printer's width, store the PNG in R2 and queue it for the Pi
+async function printTicket(env: Env, origin: string, todoId: string, t: TicketData) {
+	const params = new URLSearchParams({ id: todoId, todo: t.todo, importance: String(t.importance), created_at: t.createdAt, qr: t.url });
+	if (t.dueDate) params.set("dueDate", t.dueDate);
+	if (t.from) params.set("from", t.from);
+	if (t.labels?.length) params.set("labels", t.labels.join(","));
+
+	const browser = await puppeteer.launch(env.CLOUDFLARE_BROWSER);
+	let img: Uint8Array;
+	try {
+		const page = await browser.newPage();
+		// 576 dots = 80 mm thermal paper
+		await page.setViewport({ width: 576, height: 1000 });
+		await page.emulateTimezone(env.TIMEZONE);
+		await page.goto(`${origin}/todo-ticket?${params}`, { waitUntil: "networkidle0" });
+		const ticket = await page.waitForSelector("[data-ticket-ready]", { timeout: 15000 });
+		if (!ticket) throw new Error("Ticket element not found");
+		img = await ticket.screenshot({ type: "png" });
+	} finally {
+		await browser.close();
+	}
+
+	const r2Key = `todo-tickets/todo-${todoId}.png`;
+	await env.TICKET_BUCKET.put(r2Key, img, { httpMetadata: { contentType: "image/png" } });
+
+	const aws = new AwsClient({
+		accessKeyId: env.AWS_ACCESS_KEY_ID,
+		secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+		region: env.AWS_REGION,
+	});
+	const sqsResponse = await aws.fetch(env.SQS_QUEUE_URL, {
+		method: "POST",
+		headers: { "Content-Type": "application/x-www-form-urlencoded" },
+		body: new URLSearchParams({
+			Action: "SendMessage",
+			MessageBody: r2Key,
+			MessageDeduplicationId: `todo-${todoId}-${Date.now()}`,
+			MessageGroupId: "faxmemaybe-messages",
+			Version: "2012-11-05",
+		}).toString(),
+	});
+	if (!sqsResponse.ok) {
+		throw new Error(`Failed to send message to SQS: ${await sqsResponse.text()}`);
+	}
 }
 
 // API endpoint to submit TODOs - Now integrated with Todoist
@@ -161,79 +216,27 @@ app.post("/api/todos", async (c) => {
 		).bind(todoId, todoistTask.id, new Date().toISOString()).run();
 		console.log("Mapping stored in database:", todoId, "->", todoistTask.id);
 
-		// Use Puppeteer to generate the ticket image
-		let todoUrl = `https://remind.deadpackets.pw/todo-ticket?id=${todoId}&todo=${encodeURIComponent(body.todo.trim())}&importance=${body.importance}`;
-		if (todoistTask.due?.date) {
-			todoUrl += `&dueDate=${encodeURIComponent(todoistTask.due.date)}`;
-		}
-
-		if (body.from) {
-			todoUrl += `&from=${encodeURIComponent(body.from.trim())}`;
-		}
-
-		if (body.labels && body.labels.length > 0) {
-			todoUrl += `&labels=${encodeURIComponent(body.labels.join(','))}`;
-		}
-
-		const browser = await puppeteer.launch(c.env.CLOUDFLARE_BROWSER);
-		const page = await browser.newPage();
-		await page.goto(todoUrl, { waitUntil: 'networkidle2' });
-		await page.waitForSelector('.text-5xl')
-		const ticketDiv = await page.waitForSelector('#root');
-		if (!ticketDiv) {
-			return c.json({
-				success: false,
-				message: "Failed to process TODO",
-				error: "Ticket element not found"
-			})
-		}
-		const img = await ticketDiv.screenshot({ type: 'png' });
-		await browser.close();
-
-		// Upload the screenshot to R2
-		const r2Key = `todo-tickets/todo-${todoId}.png`;
-		await c.env.TICKET_BUCKET.put(r2Key, img, {
-			httpMetadata: {
-				contentType: 'image/png'
-			}
-		});
-
-		// Push to AWS SQS for printer to pick up
-		const aws = new AwsClient({
-			accessKeyId: c.env.AWS_ACCESS_KEY_ID,
-			secretAccessKey: c.env.AWS_SECRET_ACCESS_KEY,
-			region: c.env.AWS_REGION,
-		});
-
-		const sqsParams = new URLSearchParams({
-			Action: 'SendMessage',
-			MessageBody: r2Key,
-			MessageDeduplicationId: `todo-${todoId}-${Date.now()}`,
-			MessageGroupId: 'faxmemaybe-messages',
-			Version: '2012-11-05',
-		});
-
-		const sqsResponse = await aws.fetch(c.env.SQS_QUEUE_URL, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
-			body: sqsParams.toString(),
-		});
-
-		if (!sqsResponse.ok) {
-			const errorText = await sqsResponse.text();
-			console.error("Failed to send message to SQS:", errorText)
-			return c.json({
-				success: false,
-				message: "Failed to enqueue TODO for printing",
-				error: errorText
+		// The task already exists in Todoist, so a print failure must not make the sender retry
+		let printed = true;
+		try {
+			await printTicket(c.env, new URL(c.req.url).origin, todoId, {
+				todo: body.todo.trim(),
+				importance: body.importance,
+				dueDate: todoistTask.due?.date,
+				from: body.from?.trim(),
+				labels: validatedLabels,
+				createdAt: new Date().toISOString(),
+				url: `https://app.todoist.com/app/task/${todoistTask.id}`,
 			});
+		} catch (error) {
+			printed = false;
+			console.error("Failed to print TODO:", error);
 		}
 
 		return c.json({
 			success: true,
-			message: "TODO sent successfully!",
+			message: printed ? "TODO sent successfully!" : "TODO saved, but the ticket did not print.",
+			printed,
 			todoId: todoId,
 			todoistTaskId: todoistTask.id,
 			todoistUrl: todoistTask.url,
@@ -342,96 +345,6 @@ app.get("/api/todos", async (c) => {
 		console.error("Error fetching TODOs:", error);
 		return c.json({
 			error: "Failed to fetch TODOs",
-			message: error instanceof Error ? error.message : "Unknown error"
-		}, 500);
-	}
-});
-
-// Mark a TODO as complete via QR code scan
-app.get("/api/todos/:id/complete", async (c) => {
-	try {
-		const id = c.req.param("id");
-
-		if (!id || id.trim() === "") {
-			return c.json({ error: "Invalid TODO ID" }, 400);
-		}
-
-		// Look up the Todoist task ID from our mapping
-		const mapping = await c.env.faxmemaybe_db
-			.prepare("SELECT todoist_task_id FROM todo_mappings WHERE id = ?")
-			.bind(id)
-			.first<{ todoist_task_id: string }>();
-
-		if (!mapping) {
-			return c.json({ error: "TODO not found" }, 404);
-		}
-
-		// Complete the task in Todoist
-		const todoist = new TodoistService(
-			c.env.TODOIST_API_TOKEN,
-			c.env.TODOIST_PROJECT_NAME || 'FaxMeMaybe'
-		);
-
-		const success = await todoist.completeTask(mapping.todoist_task_id);
-
-		if (!success) {
-			return c.json({ error: "Failed to complete task in Todoist" }, 500);
-		}
-
-		return c.json({
-			success: true,
-			message: "TODO marked as complete"
-		});
-	} catch (error) {
-		console.error("Error marking TODO as complete:", error);
-		return c.json({
-			error: "Failed to mark TODO as complete",
-			message: error instanceof Error ? error.message : "Unknown error"
-		}, 500);
-	}
-});
-
-// Get a single TODO by ID
-app.get("/api/todos/:id", async (c) => {
-	try {
-		const id = c.req.param("id");
-
-		if (!id || id.trim() === "") {
-			return c.json({ error: "Invalid TODO ID" }, 400);
-		}
-
-		// Look up the Todoist task ID from our mapping
-		const mapping = await c.env.faxmemaybe_db
-			.prepare("SELECT todoist_task_id FROM todo_mappings WHERE id = ?")
-			.bind(id)
-			.first<{ todoist_task_id: string }>();
-
-		if (!mapping) {
-			return c.json({ error: "TODO not found" }, 404);
-		}
-
-		// Fetch the task from Todoist
-		const todoist = new TodoistService(
-			c.env.TODOIST_API_TOKEN,
-			c.env.TODOIST_PROJECT_NAME || 'FaxMeMaybe'
-		);
-
-		const task = await todoist.getTask(mapping.todoist_task_id);
-
-		if (!task) {
-			return c.json({ error: "TODO not found in Todoist (may have been deleted)" }, 404);
-		}
-
-		const todo = todoist.taskToTodoistTask(task, id);
-
-		return c.json({
-			success: true,
-			todo: todo
-		});
-	} catch (error) {
-		console.error("Error fetching TODO:", error);
-		return c.json({
-			error: "Failed to fetch TODO",
 			message: error instanceof Error ? error.message : "Unknown error"
 		}, 500);
 	}
@@ -592,6 +505,41 @@ app.post("/api/webhooks/todoist", async (c) => {
 
 		// Handle different event types
 		switch (event.event_name) {
+			case "item:added": {
+				const todoist = new TodoistService(
+					c.env.TODOIST_API_TOKEN,
+					c.env.TODOIST_PROJECT_NAME || 'FaxMeMaybe'
+				);
+				const task = await todoist.getTask(event.event_data.id);
+				if (!task) break;
+
+				const t = todoist.taskToTodoistTask(task);
+				// API-created tasks carry a source and already printed in POST /api/todos
+				if (t.source) break;
+				if (task.projectId !== await todoist.getProjectId() && !t.labels.includes(PRINT_LABEL)) break;
+
+				// Todoist can deliver a webhook more than once; the UNIQUE mapping makes printing idempotent
+				const todoId = generateUUID();
+				const { meta } = await c.env.faxmemaybe_db
+					.prepare("INSERT OR IGNORE INTO todo_mappings (id, todoist_task_id, created_at) VALUES (?, ?, ?)")
+					.bind(todoId, task.id, new Date().toISOString())
+					.run();
+				if (!meta.changes) break;
+
+				c.executionCtx.waitUntil(
+					printTicket(c.env, new URL(c.req.url).origin, todoId, {
+						todo: t.content,
+						importance: t.importance,
+						dueDate: t.dueDate,
+						from: t.from,
+						labels: t.labels,
+						createdAt: t.createdAt,
+						url: `https://app.todoist.com/app/task/${task.id}`,
+					}).catch((error) => console.error("Failed to print Todoist task:", task.id, error))
+				);
+				break;
+			}
+
 			case "item:deleted":
 				// Clean up our mapping when a task is deleted in Todoist
 				await c.env.faxmemaybe_db
@@ -624,8 +572,20 @@ app.post("/api/webhooks/todoist", async (c) => {
 	}
 });
 
+// Tickets printed before v1.0 have QR codes that point here; send them on to the Todoist task
+app.get("/view-todo", async (c) => {
+	const id = c.req.query("id");
+	const mapping = id
+		? await c.env.faxmemaybe_db
+			.prepare("SELECT todoist_task_id FROM todo_mappings WHERE id = ?")
+			.bind(id)
+			.first<{ todoist_task_id: string }>()
+		: null;
+	return c.redirect(mapping ? `https://app.todoist.com/app/task/${mapping.todoist_task_id}` : "/");
+});
+
 // Health check endpoint
-app.get("/api/health", (c) => c.json({ status: "ok", integration: "todoist" }));
+app.get("/api/health", (c) => c.json({ status: "ok", integration: "todoist", version: c.env.VERSION }));
 
 // Type definitions for First Blood submission
 interface FirstBloodSubmission {

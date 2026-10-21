@@ -1,19 +1,25 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import '@fontsource-variable/inter';
+@import "@fontsource-variable/instrument-sans";
+@import "@fontsource-variable/martian-mono";
 
-
+/* No dark theme: keep shadcn's dark: classes off even when the OS is dark */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Instrument Sans Variable", system-ui, sans-serif;
+  --font-mono: "Martian Mono Variable", ui-monospace, monospace;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+  --color-ground: var(--ground);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-signal: var(--signal);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -28,88 +34,34 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* One look on purpose: a signal-red desk, a white paper slip, black thermal ink. */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-}
+  color-scheme: light;
+  --radius: 0.375rem;
+  --ground: oklch(0.52 0.19 32);
+  --paper: oklch(1 0 0);
+  --ink: oklch(0.2 0 0);
+  --ink-soft: oklch(0.45 0 0);
+  --signal: oklch(0.52 0.19 32);
 
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--paper);
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: var(--ink-soft);
+  --accent: oklch(0.95 0.02 32);
+  --accent-foreground: var(--ink);
+  --destructive: oklch(0.47 0.17 28);
+  --border: oklch(0.85 0 0);
+  --input: var(--ink);
+  --ring: var(--signal);
 }
 
 @layer base {
@@ -117,10 +69,42 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-ground font-sans text-white antialiased;
   }
 }
 
-body {
-    font-family: 'Inter Variable', sans-serif;
+@layer components {
+  /* Paper slip with a torn bottom edge */
+  .slip {
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 18px 100%;
+    mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / 18px 100%;
+  }
+
+  /* Thermal ticket. Sizes are in cqw so the 576 px print and the on-screen preview match. Pure black only: the head prints 1 bit. */
+  .ticket {
+    container-type: inline-size;
+    background: #fff;
+    color: #000;
+  }
+  .ticket-body { padding: 7cqw 6cqw 5cqw; font-size: 3.4cqw; line-height: 1.3 }
+  .ticket-mono { font-family: var(--font-mono) }
+  .ticket-brand { display: flex; justify-content: space-between; font: 700 3.2cqw/1 var(--font-mono); letter-spacing: 0.18em }
+  .ticket-rule { border-top: 0.5cqw dashed #000; margin: 4.5cqw 0 }
+  .ticket-flames { display: flex; justify-content: center; gap: 1.5cqw }
+  .ticket-flames svg { width: 10cqw; height: 10cqw }
+  .ticket-level { text-align: center; font: 700 4.2cqw/1 var(--font-mono); letter-spacing: 0.3em; margin-top: 3cqw }
+  .ticket-todo { margin: 0; text-align: center; font-size: 8.6cqw; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; text-wrap: balance; overflow-wrap: anywhere }
+  .ticket-line { display: flex; align-items: baseline; gap: 2cqw; font: 3.3cqw/1.9 var(--font-mono) }
+  .ticket-line .dots { flex: 1; min-width: 4cqw; border-bottom: 0.45cqw dotted #000 }
+  .ticket-line .value { font-weight: 700; text-align: right; overflow-wrap: anywhere }
+  .ticket-done { display: grid; grid-template-columns: auto 1fr; gap: 5cqw; align-items: center }
+  .ticket-done img, .ticket-done .qr-slot { width: 34cqw; aspect-ratio: 1; image-rendering: pixelated }
+  .ticket-done .qr-slot { display: grid; place-items: center; border: 0.5cqw dashed #000; font: 700 3cqw/1.3 var(--font-mono); text-align: center }
+  .ticket-done p { margin: 0; font-size: 5cqw; font-weight: 700; line-height: 1.1 }
+  .ticket-done small { display: block; margin-top: 2cqw; font: 400 2.8cqw/1.3 var(--font-mono) }
+  .ticket-tear { display: flex; align-items: center; gap: 2cqw; margin: 5cqw 0 3cqw; font: 700 2.6cqw/1 var(--font-mono); letter-spacing: 0.2em }
+  .ticket-tear::before, .ticket-tear::after { content: ""; flex: 1; border-top: 0.5cqw dashed #000 }
+  .ticket-foot { display: flex; justify-content: space-between; gap: 2cqw; font: 2.8cqw/1 var(--font-mono) }
 }

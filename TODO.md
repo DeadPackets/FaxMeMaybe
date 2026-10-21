@@ -1,15 +1,22 @@
 # TODO
 
-- [ ] Reach v1.0 milestone
-- [ ] Build an OSX menu bar app using Tauri
-- [ ] Build an iOS Shortcut extension to quickly add tasks from anywhere
+- [ ] Reach v1.0 milestone (see PLAN.md: tag after merge)
 - [ ] Improve n8n workflows to automatically create tasks from various sources (like emails, messages, etc) with gemini-2.5-flash
-- [ ] Add versioning for the client and API, autoincrementing with each push to main
-- [ ] The README is a little... too much AI. Clean it up to be more human-readable.
-- [ ] Add cool useful badges and integrations into the README (like uptime, version, etc)
-- [ ] Configure Todoist webhook for real-time sync (item:added, item:completed, etc.)
+- [ ] Todoist webhook: create the app, run OAuth once, set TODOIST_WEBHOOK_SECRET (code is done, see README)
 
 # DONE
+- [x] v1 rewrite: Direction A form and ticket, QR opens Todoist, admin and view-todo pages removed
+- [x] Print tasks added in the Todoist apps (webhook item:added)
+- [x] Ticket renders at the printer's 576 px width in the local time zone
+- [x] End-to-end print test (e2e/ticket_e2e.py)
+- [x] Versioning: VERSION file plus CI build number, shown on /api/health
+- [x] Rewrite the README in plain language, with status and version badges
+
+# DROPPED
+- Tauri menu bar app: Todoist for Mac has a global Quick Add shortcut
+- iOS Shortcut: Todoist's share sheet and Siri actions do the same thing
+
+# DONE (before v1)
 - [x] Integrate Todoist as backend storage (replaces D1 for task data)
 - [x] Add Todoist label support with color-coded picker
 - [x] Add natural language due date input ("tomorrow", "next Friday")

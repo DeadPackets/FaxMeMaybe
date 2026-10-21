@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - fax-me-maybe-client/**
+      - VERSION
   workflow_dispatch:
 
 jobs:
@@ -18,6 +19,9 @@ jobs:
     steps:
         - name: Checkout repository
           uses: actions/checkout@v5
+
+        - name: Set version
+          run: echo "VERSION=$(cat VERSION).${{ github.run_number }}" >> "$GITHUB_ENV"
 
         - name: Set up Docker Buildx
           uses: docker/setup-buildx-action@v3
@@ -35,4 +39,6 @@ jobs:
             context: fax-me-maybe-client
             platforms: linux/${{ matrix.arch }}
             push: true
-            tags: ghcr.io/deadpackets/fax-me-maybe-client:latest
+            tags: |
+              ghcr.io/deadpackets/fax-me-maybe-client:latest
+              ghcr.io/deadpackets/fax-me-maybe-client:${{ env.VERSION }}

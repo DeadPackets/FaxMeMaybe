@@ -346,3 +346,5 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+# E2E run output
+e2e/artifacts/
