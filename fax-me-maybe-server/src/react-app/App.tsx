@@ -142,7 +142,7 @@ function App() {
 				return null;
 			});
 
-		// The sheet feeds up into the slot while the request runs (the print takes about 10 s), then a sheet feeds back out
+		// The sheet feeds up into the slot while the request runs, then a sheet feeds back out
 		const feed = feedRef.current!, wrap = wrapRef.current!;
 		let exit: Animation | null = null;
 		if (motionOk()) {
@@ -159,7 +159,6 @@ function App() {
 		const res = await sent;
 		if (!res) toast.error("Could not reach the server. Check your connection and try again.");
 		else if (!res.ok) toast.error(res.data.error || "The TODO was not sent. Try again.");
-		else if (res.data.printed === false) toast.warning("Saved to Todoist, but the ticket did not print.");
 		else toast.success("Sent. It is printing on my desk now.");
 
 		heat.current?.clearBurn();

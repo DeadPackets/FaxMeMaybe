@@ -19,6 +19,7 @@ flowchart LR
   Form[Web form or API] --> Worker[Cloudflare Worker]
   Apps[Todoist apps] -- webhook --> Worker
   Worker <--> Todoist[(Todoist)]
+  Worker -- print job --> Queue[[Cloudflare Queue]] --> Worker
   Worker -- render at 576 px --> Browser[Browser Rendering]
   Worker -- PNG --> R2[(R2)]
   Worker -- R2 key --> SQS[[SQS FIFO]]
@@ -26,8 +27,8 @@ flowchart LR
 ```
 
 1. Someone fills in the form, or something calls `POST /api/todos`. My n8n email parser and a Linear automation both use the API.
-2. The Worker creates the task in Todoist. Todoist is my real task list, so I manage everything in its apps.
-3. The Worker opens `/todo-ticket` in Cloudflare's headless browser at 576 px (80 mm paper), takes a screenshot of the ticket and stores the PNG in R2.
+2. The Worker creates the task in Todoist and replies. Todoist is my real task list, so I manage everything in its apps.
+3. A print job goes on a Cloudflare Queue. The Worker's queue consumer opens `/todo-ticket` in Cloudflare's headless browser at 576 px (80 mm paper), takes a screenshot of the ticket and stores the PNG in R2.
 4. It puts the R2 key on an SQS FIFO queue.
 5. A Raspberry Pi polls the queue, downloads the PNG and prints it with python-escpos.
 6. When the task is done, I scan the QR code on the ticket. It opens the task in the Todoist app, and I tick it off there.
@@ -52,11 +53,12 @@ VERSION                       Major.minor version; CI adds the build number
 
 ### Worker
 
-You need a Cloudflare account with Workers, D1, R2 and Browser Rendering, a Todoist account and an AWS SQS FIFO queue.
+You need a Cloudflare account with Workers, D1, R2, Queues and Browser Rendering, a Todoist account and an AWS SQS FIFO queue.
 
 ```bash
 cd fax-me-maybe-server
 npm install
+npx wrangler queues create faxmemaybe-print
 npx wrangler d1 migrations apply faxmemaybe-db --remote
 npx wrangler secret put TODOIST_API_TOKEN    # repeat for every secret below
 npm run deploy
@@ -105,7 +107,7 @@ curl -X POST https://remind.deadpackets.pw/api/todos \
   -d '{"todo": "Review the new feature", "importance": 3, "dueDate": "tomorrow at 5pm", "from": "API User"}'
 ```
 
-The response includes `printed: false` if the task was saved but the ticket did not print. Do not retry in that case, or you get a duplicate task.
+The response comes back when the task is saved in Todoist. The ticket prints from a Cloudflare Queue, which retries a failed print 3 times. A print that still fails shows only in the Worker logs.
 
 Other endpoints:
 
@@ -118,9 +120,10 @@ Other endpoints:
 The end-to-end check sends a real TODO through the whole pipeline and prints a real ticket. It checks that the PNG is exactly 576 px wide and that the QR code opens the Todoist task.
 
 ```bash
-cd fax-me-maybe-server && npm run build && npx wrangler versions upload   # prints a Version Preview URL
-cd .. && FAXMEMAYBE_API_KEY=... uv run e2e/ticket_e2e.py <version preview URL>
+FAXMEMAYBE_API_KEY=... uv run e2e/ticket_e2e.py https://remind.deadpackets.pw
 ```
+
+Run it against production. The queue consumer runs only on the deployed version, so a version preview URL can queue a ticket but never prints it.
 
 It writes `ticket.png` and `report.json` to `e2e/artifacts/<timestamp>/`. With `FAXMEMAYBE_API_KEY` set, it deletes the test task afterwards.
 

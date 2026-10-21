@@ -87,6 +87,9 @@ interface TicketData {
 	url: string;
 }
 
+// waitUntil lost 2 of 5 test prints, so prints go through a queue that retries
+type PrintJob = { origin: string; todoId: string; ticket: TicketData };
+
 // Render /todo-ticket at the printer's width, store the PNG in R2 and queue it for the Pi
 async function printTicket(env: Env, origin: string, todoId: string, t: TicketData) {
 	const params = new URLSearchParams({ id: todoId, todo: t.todo, importance: String(t.importance), created_at: t.createdAt, qr: t.url });
@@ -217,10 +220,11 @@ app.post("/api/todos", async (c) => {
 		).bind(todoId, todoistTask.id, new Date().toISOString()).run();
 		console.log("Mapping stored in database:", todoId, "->", todoistTask.id);
 
-		// The task already exists in Todoist, so a print failure must not make the sender retry
-		let printed = true;
-		try {
-			await printTicket(c.env, new URL(c.req.url).origin, todoId, {
+		// The render takes 6-14 s, so the sender gets a reply once the task is saved and must not retry into a duplicate
+		await c.env.PRINT_QUEUE.send({
+			origin: new URL(c.req.url).origin,
+			todoId,
+			ticket: {
 				todo: body.todo.trim(),
 				importance: body.importance,
 				dueDate: todoistTask.due?.date,
@@ -228,16 +232,12 @@ app.post("/api/todos", async (c) => {
 				labels: validatedLabels,
 				createdAt: new Date().toISOString(),
 				url: `https://app.todoist.com/app/task/${todoistTask.id}`,
-			});
-		} catch (error) {
-			printed = false;
-			console.error("Failed to print TODO:", error);
-		}
+			},
+		}).catch((error) => console.error("Failed to queue TODO print:", todoId, error));
 
 		return c.json({
 			success: true,
-			message: printed ? "TODO sent successfully!" : "TODO saved, but the ticket did not print.",
-			printed,
+			message: "TODO sent successfully!",
 			todoId: todoId,
 			todoistTaskId: todoistTask.id,
 			todoistUrl: todoistTask.url,
@@ -521,8 +521,10 @@ app.post("/api/webhooks/todoist", async (c) => {
 					.run();
 				if (!meta.changes) break;
 
-				c.executionCtx.waitUntil(
-					printTicket(c.env, new URL(c.req.url).origin, todoId, {
+				await c.env.PRINT_QUEUE.send({
+					origin: new URL(c.req.url).origin,
+					todoId,
+					ticket: {
 						todo: t.content,
 						importance: t.importance,
 						dueDate: t.dueDate,
@@ -530,8 +532,8 @@ app.post("/api/webhooks/todoist", async (c) => {
 						labels: t.labels,
 						createdAt: t.createdAt,
 						url: `https://app.todoist.com/app/task/${task.id}`,
-					}).catch((error) => console.error("Failed to print Todoist task:", task.id, error))
-				);
+					},
+				});
 				break;
 			}
 
@@ -674,4 +676,10 @@ app.post("/api/first-bloods", async (c) => {
 	}
 });
 
-export default app;
+export default {
+	fetch: app.fetch,
+	// One message per batch (wrangler.json), so a throw retries only that ticket
+	async queue(batch, env) {
+		for (const { body } of batch.messages) await printTicket(env, body.origin, body.todoId, body.ticket);
+	},
+} satisfies ExportedHandler<Env, PrintJob>;

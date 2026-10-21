@@ -38,6 +38,22 @@
         "preview_bucket_name": "fax-me-maybe-tickets"
       }
     ],
+    "queues": {
+      "producers": [
+        {
+          "binding": "PRINT_QUEUE",
+          "queue": "faxmemaybe-print"
+        }
+      ],
+      "consumers": [
+        {
+          "queue": "faxmemaybe-print",
+          "max_batch_size": 1,
+          "max_retries": 3,
+          "retry_delay": 10
+        }
+      ]
+    },
     "ratelimits": [
         {
             "name": "RATE_LIMITER",

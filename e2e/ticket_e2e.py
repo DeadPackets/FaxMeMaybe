@@ -44,18 +44,26 @@ def main(base_url: str) -> int:
             json={"todo": f"E2E check {stamp[9:13]}", "importance": 2, "from": "e2e", "source": "e2e"},
             timeout=90,
         )
+        elapsed = time.monotonic() - t0
         body = res.json()
         report["response"] = body
-        check("POST /api/todos returns 200", res.status_code == 200, f"{res.status_code} in {time.monotonic() - t0:.1f}s")
-        if not check("ticket printed", body.get("printed") is True, body.get("message")):
+        if not check("POST /api/todos returns 200", res.status_code == 200, f"{res.status_code}: {body.get('message')}"):
             return finish(report, out)
+        # The render alone takes 6-14 s, so a slower reply means the print is blocking again
+        check("reply does not wait for the print", elapsed < 5, f"{elapsed:.1f}s")
 
+        # The queue prints after the reply; 60 s covers one 10 s retry
         png = out / "ticket.png"
-        get = subprocess.run(
-            ["npx", "wrangler", "r2", "object", "get", f"fax-me-maybe-tickets/todo-tickets/todo-{body['todoId']}.png", "--remote", "--file", str(png)],
-            cwd=SERVER, capture_output=True, text=True, timeout=120,
-        )
-        if not check("ticket PNG stored in R2", get.returncode == 0 and png.exists(), get.stderr.strip()[-200:] or "downloaded"):
+        deadline = time.monotonic() + 60
+        while True:
+            get = subprocess.run(
+                ["npx", "wrangler", "r2", "object", "get", f"fax-me-maybe-tickets/todo-tickets/todo-{body['todoId']}.png", "--remote", "--file", str(png)],
+                cwd=SERVER, capture_output=True, text=True, timeout=120,
+            )
+            if get.returncode == 0 or time.monotonic() > deadline:
+                break
+            time.sleep(3)
+        if not check("ticket PNG stored in R2", get.returncode == 0 and png.exists(), get.stderr.strip()[-200:] or f"after {time.monotonic() - t0:.1f}s"):
             return finish(report, out)
 
         img = cv2.imread(str(png))
