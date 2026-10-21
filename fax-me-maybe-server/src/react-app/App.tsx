@@ -1,11 +1,27 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
+import { flushSync } from "react-dom";
 import { Flame, Loader2, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { LabelSelector, type LabelOption } from "@/components/ui/label-selector";
 import { SmartDateInput } from "@/components/ui/smart-date-input";
 import { Ticket, IMPORTANCE_LEVELS } from "./Ticket";
+import { startHeat, type HeatEngine } from "./heat";
 
 const EMPTY_FORM = { importance: 3, todo: "", description: "", dueDate: "", from: "", labels: [] as string[] };
+type Stats = { printed: number; pending: number; completed: number; medianHoursToDone: number | null };
+
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+// The sheet passes through a slot on the top edge of the preview
+const IN_SLOT = { transform: "translateY(-100%)", clipPath: "inset(100% -24px -24px)" };
+const ON_DESK = { transform: "translateY(0)", clipPath: "inset(0 -24px -24px)" };
+const motionOk = () => !matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function fmtHours(h: number) {
+	if (h < 1) return `${Math.max(1, Math.round(h * 60))} min`;
+	if (h < 48) return `${Math.round(h)} h`;
+	return `${(h / 24).toFixed(1)} days`;
+}
 
 const fieldLabel = "flex justify-between font-mono text-[0.6875rem] uppercase tracking-[0.06em] text-ink-soft";
 const slipInput =
@@ -22,8 +38,8 @@ function Counter({ id, value, max }: { id: string; value: string; max: number })
 
 function App() {
 	const [form, setForm] = useState(EMPTY_FORM);
-	const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
-	const [stats, setStats] = useState<{ printed: number; pending: number; completed: number } | null>(null);
+	const [sending, setSending] = useState(false);
+	const [stats, setStats] = useState<Stats | null>(null);
 	const [labels, setLabels] = useState<LabelOption[] | null>(null);
 	const [previewTime] = useState(() => new Date().toISOString());
 	const level = IMPORTANCE_LEVELS.find((l) => l.value === form.importance) ?? IMPORTANCE_LEVELS[2];
@@ -45,50 +61,122 @@ function App() {
 			.catch(() => setLabels([]));
 	}, []);
 
+	const pageRef = useRef<HTMLElement>(null);
+	const bgRef = useRef<HTMLCanvasElement>(null);
+	const heroRef = useRef<HTMLElement>(null);
+	const wrapRef = useRef<HTMLDivElement>(null);
+	const feedRef = useRef<HTMLDivElement>(null);
+	const burnRef = useRef<HTMLCanvasElement>(null);
+	const formRef = useRef<HTMLFormElement>(null);
+	const tallyRef = useRef<HTMLDListElement>(null);
+	const heat = useRef<HeatEngine | null>(null);
+	const importance = useRef(form.importance);
+	const mounted = useRef(false);
+	const prevStats = useRef<Stats | null>(null);
+
+	useEffect(() => {
+		const engine = startHeat({
+			page: pageRef.current!,
+			canvas: bgRef.current!,
+			hero: heroRef.current!,
+			anchor: wrapRef.current!,
+			feed: feedRef.current!,
+			burnCanvas: burnRef.current!,
+			importance: () => importance.current,
+		});
+		heat.current = engine;
+		return () => engine.destroy();
+	}, []);
+
+	useEffect(() => {
+		importance.current = form.importance;
+		if (!mounted.current) return;
+		heat.current?.touch(true);
+		if (!motionOk()) return;
+		formRef.current?.querySelectorAll<SVGElement>("[data-on] svg").forEach((svg, i) =>
+			svg.animate([{ transform: "scale(0.55)" }, { transform: "scale(1)" }], { duration: 320, delay: i * 30, easing: EASE }),
+		);
+	}, [form.importance]);
+
+	useEffect(() => {
+		if (mounted.current) heat.current?.touch(false);
+		mounted.current = true;
+	}, [form.todo, form.from, form.dueDate, form.labels]);
+
+	useEffect(() => {
+		const prev = prevStats.current;
+		prevStats.current = stats;
+		if (!prev || !stats || !motionOk()) return;
+		tallyRef.current?.querySelectorAll<HTMLElement>("dd[data-key]").forEach((dd) => {
+			const key = dd.dataset.key as keyof Stats;
+			if (prev[key] !== stats[key]) dd.animate([{ transform: "translateY(40%)", opacity: 0.2 }, { transform: "none", opacity: 1 }], { duration: 380, easing: EASE });
+		});
+	}, [stats]);
+
 	const set = <K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) =>
 		setForm((f) => ({ ...f, [key]: value }));
 
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
+		if (sending) return;
 		if (!form.todo.trim()) {
 			toast.error("Write what needs doing first.");
 			return;
 		}
-		setStatus("sending");
-		try {
-			const response = await fetch("/api/todos", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					importance: form.importance,
-					todo: form.todo,
-					description: form.description || undefined,
-					dueDate: form.dueDate || undefined,
-					from: form.from || undefined,
-					labels: form.labels.length > 0 ? form.labels : undefined,
-				}),
+		setSending(true);
+		const sent = fetch("/api/todos", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				importance: form.importance,
+				todo: form.todo,
+				description: form.description || undefined,
+				dueDate: form.dueDate || undefined,
+				from: form.from || undefined,
+				labels: form.labels.length > 0 ? form.labels : undefined,
+			}),
+		})
+			.then(async (r) => ({ ok: r.ok, data: await r.json() }))
+			.catch((error) => {
+				console.error("Error submitting TODO:", error);
+				return null;
 			});
-			const data = await response.json();
-			if (!response.ok) {
-				toast.error(data.error || "The TODO was not sent. Try again.");
-				setStatus("idle");
-				return;
+
+		// The sheet feeds up into the slot while the request runs (the print takes about 10 s), then a sheet feeds back out
+		const feed = feedRef.current!, wrap = wrapRef.current!;
+		let exit: Animation | null = null;
+		if (motionOk()) {
+			const r = feed.getBoundingClientRect();
+			if (r.top < 0 || r.bottom > innerHeight) {
+				feed.scrollIntoView({ block: "center", behavior: "smooth" });
+				await wait(450);
 			}
-			if (data.printed === false) {
-				toast.warning("Saved to Todoist, but the ticket did not print.");
-			} else {
-				toast.success("Sent. It is printing on my desk now.");
-			}
-			setStatus("sent");
-			setStats((s) => s && { ...s, pending: s.pending + 1 });
-			setTimeout(() => {
+			wrap.dataset.feeding = "";
+			exit = feed.animate([ON_DESK, IN_SLOT], { duration: 1100, easing: "steps(28)", fill: "forwards" });
+			await exit.finished;
+		}
+
+		const res = await sent;
+		if (!res) toast.error("Could not reach the server. Check your connection and try again.");
+		else if (!res.ok) toast.error(res.data.error || "The TODO was not sent. Try again.");
+		else if (res.data.printed === false) toast.warning("Saved to Todoist, but the ticket did not print.");
+		else toast.success("Sent. It is printing on my desk now.");
+
+		heat.current?.clearBurn();
+		flushSync(() => {
+			if (res?.ok) {
 				setForm(EMPTY_FORM);
-				setStatus("idle");
-			}, 2000);
-		} catch (error) {
-			console.error("Error submitting TODO:", error);
-			toast.error("Could not reach the server. Check your connection and try again.");
-			setStatus("idle");
+				setStats((s) => s && { ...s, printed: s.printed + 1, pending: s.pending + 1 });
+			}
+			setSending(false);
+		});
+		if (res?.ok) heat.current?.sweep();
+		if (exit) {
+			// A blank sheet after a send, the same sheet back after a failure
+			const back = feed.animate([IN_SLOT, ON_DESK], { duration: 700, easing: "steps(18)" });
+			exit.cancel();
+			await back.finished;
+			delete wrap.dataset.feeding;
 		}
 	};
 
@@ -102,21 +190,37 @@ function App() {
 	};
 
 	return (
-		<div className="min-h-dvh pl-[max(16px,env(safe-area-inset-left))] pr-[max(16px,env(safe-area-inset-right))]">
-			<main className="mx-auto max-w-[1000px] py-10 sm:py-14">
-				<header className="mb-8 sm:mb-10">
-					<h1 className="flex items-center gap-2 text-[2rem] font-bold tracking-[-0.02em] sm:text-[2.5rem]">
-						<Flame aria-hidden="true" className="size-8 fill-white sm:size-10" />
+		<main
+			ref={pageRef}
+			className="relative min-h-dvh pl-[max(16px,env(safe-area-inset-left))] pr-[max(16px,env(safe-area-inset-right))]"
+		>
+			<canvas ref={bgRef} className="heat" aria-hidden="true" />
+			<div className="relative z-[1] mx-auto max-w-[1120px] pt-10 pb-14 sm:pt-14">
+				<header ref={heroRef}>
+					<h1 className="flex items-center gap-2.5 text-[clamp(2.75rem,8vw,6rem)] leading-none font-bold tracking-[-0.03em]">
+						<Flame aria-hidden="true" className="size-[0.9em] shrink-0 fill-white" />
 						FaxMeMaybe
 					</h1>
-					<p className="mt-1 text-lg">Send me a TODO, I'll get to it... eventually.</p>
-					<p className="mt-3 min-h-5 font-mono text-xs tabular-nums" aria-live="polite">
-						{stats && `${stats.pending.toLocaleString()} pending · ${stats.completed.toLocaleString()} done`}
-					</p>
+					<p className="mt-2.5 text-xl">Send me a TODO, I'll get to it... eventually.</p>
+					<dl ref={tallyRef} className="tally" aria-label="Ticket stats">
+						{[
+							{ key: "printed", label: "Printed", value: stats?.printed.toLocaleString("en-GB") },
+							{ key: "pending", label: "On the desk", value: stats?.pending.toLocaleString("en-GB") },
+							{ key: "completed", label: "Done", value: stats?.completed.toLocaleString("en-GB") },
+							...(stats?.medianHoursToDone != null
+								? [{ key: "medianHoursToDone", label: "Median time to done", value: fmtHours(stats.medianHoursToDone) }]
+								: []),
+						].map((row) => (
+							<div key={row.key}>
+								<dt>{row.label}</dt>
+								<dd data-key={row.key}>{row.value ?? "–"}</dd>
+							</div>
+						))}
+					</dl>
 				</header>
 
-				<div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
-					<form onSubmit={handleSubmit} className="slip max-w-[560px] px-6 pt-6 pb-12 sm:px-8" aria-labelledby="send-heading">
+				<div className="mt-9 grid items-start gap-10 min-[960px]:grid-cols-[minmax(0,1fr)_420px] min-[960px]:gap-14">
+					<form ref={formRef} onSubmit={handleSubmit} className="slip max-w-[560px] px-6 pt-6 pb-12 sm:px-8" aria-labelledby="send-heading">
 						<div className="mb-5 flex items-baseline justify-between gap-3 border-b-2 border-dashed border-ink pb-3">
 							<h2 id="send-heading" className="text-[1.375rem] font-bold tracking-[-0.01em]">
 								Send a TODO
@@ -129,59 +233,61 @@ function App() {
 						</div>
 
 						<div className="grid gap-6">
-							<div className="grid gap-1">
-								<label htmlFor="todo" className={fieldLabel}>
-									<span>What needs doing</span>
-									<Counter id="todo-count" value={form.todo} max={64} />
-								</label>
-								<input
-									id="todo"
-									className={`${slipInput} text-xl font-semibold`}
-									placeholder="Pick up the dry cleaning"
-									value={form.todo}
-									onChange={(e) => set("todo", e.target.value)}
-									maxLength={64}
-									required
-									aria-describedby="todo-count"
-								/>
-							</div>
-
-							<fieldset className="grid gap-1">
-								<legend className={`${fieldLabel} mb-1`}>Importance</legend>
-								<div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-									{IMPORTANCE_LEVELS.map((l) => (
-										<label
-											key={l.value}
-											className="grid h-11 w-10 cursor-pointer place-items-center rounded-md has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal"
-										>
-											<input
-												type="radio"
-												name="importance"
-												value={l.value}
-												checked={form.importance === l.value}
-												onChange={() => set("importance", l.value)}
-												className="sr-only"
-											/>
-											<Flame
-												aria-hidden="true"
-												strokeWidth={1.8}
-												className={`size-[26px] transition-colors duration-150 ${l.value <= form.importance ? "fill-signal text-signal" : "text-ink"}`}
-											/>
-											<span className="sr-only">{`${l.label}: ${l.hint}`}</span>
-										</label>
-									))}
-									<p className="ml-2 text-sm" aria-hidden="true">
-										<span className="font-mono text-xs font-bold tracking-[0.08em] uppercase">{level.label}</span>
-										<span className="text-ink-soft"> · {level.hint}</span>
-									</p>
+							<fieldset disabled={sending} className="m-0 grid min-w-0 gap-6 border-0 p-0">
+								<div className="grid gap-1">
+									<div className={fieldLabel}>
+										<label htmlFor="todo">What needs doing</label>
+										<Counter id="todo-count" value={form.todo} max={64} />
+									</div>
+									<input
+										id="todo"
+										className={`${slipInput} text-xl font-semibold`}
+										placeholder="Pick up the dry cleaning"
+										value={form.todo}
+										onChange={(e) => set("todo", e.target.value)}
+										maxLength={64}
+										required
+										aria-describedby="todo-count"
+									/>
 								</div>
+
+								<fieldset className="grid gap-1">
+									<legend className={`${fieldLabel} mb-1`}>Importance</legend>
+									<div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+										{IMPORTANCE_LEVELS.map((l) => (
+											<label
+												key={l.value}
+												data-on={l.value <= form.importance || undefined}
+												className="grid h-11 w-10 cursor-pointer place-items-center rounded-md has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal"
+											>
+												<input
+													type="radio"
+													name="importance"
+													value={l.value}
+													checked={form.importance === l.value}
+													onChange={() => set("importance", l.value)}
+													className="sr-only"
+												/>
+												<Flame
+													aria-hidden="true"
+													strokeWidth={1.8}
+													className={`size-[26px] transition-colors duration-150 ${l.value <= form.importance ? "fill-signal text-signal" : "text-ink"}`}
+												/>
+												<span className="sr-only">{`${l.label}: ${l.hint}`}</span>
+											</label>
+										))}
+										<p className="ml-2 text-sm" aria-hidden="true">
+											<span className="font-mono text-xs font-bold tracking-[0.08em] uppercase">{level.label}</span>
+											<span className="text-ink-soft"> · {level.hint}</span>
+										</p>
+									</div>
 							</fieldset>
 
 							<div className="grid gap-1">
-								<label htmlFor="description" className={fieldLabel}>
-									<span>Details (optional)</span>
+								<div className={fieldLabel}>
+									<label htmlFor="description">Details (optional)</label>
 									<Counter id="description-count" value={form.description} max={500} />
-								</label>
+								</div>
 								<textarea
 									id="description"
 									className={`${slipInput} resize-none`}
@@ -232,10 +338,10 @@ function App() {
 							</div>
 
 							<div className="grid gap-1">
-								<label htmlFor="from" className={fieldLabel}>
-									<span>From (optional)</span>
+								<div className={fieldLabel}>
+									<label htmlFor="from">From (optional)</label>
 									<Counter id="from-count" value={form.from} max={40} />
-								</label>
+								</div>
 								<input
 									id="from"
 									className={slipInput}
@@ -247,34 +353,46 @@ function App() {
 									aria-describedby="from-count"
 								/>
 							</div>
+							</fieldset>
 
 							<button
 								type="submit"
-								disabled={status !== "idle"}
-								className="mt-2 flex h-13 items-center justify-center gap-2 rounded-md bg-ink text-base font-semibold text-paper transition-colors duration-150 hover:bg-signal focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-signal active:translate-y-px disabled:cursor-not-allowed disabled:bg-ink/70"
+								aria-disabled={sending}
+								className="mt-2 flex h-13 items-center justify-center gap-2 rounded-md bg-ink text-base font-semibold text-paper transition-colors duration-150 hover:bg-signal focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-signal active:translate-y-px aria-disabled:cursor-progress aria-disabled:bg-ink/70"
 							>
-								{status === "sending" && <Loader2 aria-hidden="true" className="size-5 motion-safe:animate-spin" />}
-								{status === "idle" ? "Print my TODO" : status === "sending" ? "Sending" : "Sent to the printer"}
+								{sending && <Loader2 aria-hidden="true" className="size-5 motion-safe:animate-spin" />}
+								{sending ? "Sending" : "Print my TODO"}
 							</button>
+							<p role="status" className="sr-only">
+								{sending ? "Sending your TODO to the printer." : ""}
+							</p>
 						</div>
 					</form>
 
-					<aside aria-labelledby="preview-heading" className="grid gap-3 lg:sticky lg:top-8">
+					<aside aria-labelledby="preview-heading" className="grid min-w-0 gap-3 min-[960px]:sticky min-[960px]:top-8">
 						<h2 id="preview-heading" className="font-mono text-xs font-bold tracking-[0.06em] uppercase">
 							What prints
 						</h2>
-						<div className="w-full max-w-[400px] shadow-[0_2px_6px_rgb(0_0_0/0.25)]">
-							<Ticket
-								todo={form.todo.trim() || "Your TODO goes here"}
-								importance={form.importance}
-								dueDate={form.dueDate || undefined}
-								from={form.from.trim() || undefined}
-								labels={form.labels}
-								createdAt={previewTime}
-							/>
+						<div ref={wrapRef} className="cwrap">
+							<div ref={feedRef} className="feed">
+								<Ticket
+									todo={form.todo.trim() || "Your TODO goes here"}
+									importance={form.importance}
+									dueDate={form.dueDate || undefined}
+									from={form.from.trim() || undefined}
+									labels={form.labels}
+									createdAt={previewTime}
+								/>
+								<canvas ref={burnRef} className="burn" aria-hidden="true" />
+							</div>
+							{sending && (
+								<p className="waiting" aria-hidden="true">
+									Printing on my desk
+								</p>
+							)}
 						</div>
 						<p className="max-w-[400px] text-sm">
-							The ticket prints 80 mm wide on a thermal printer on my desk. Its QR code opens the task in Todoist.
+							The ticket prints 80 mm wide on a thermal printer on my desk, and its QR code opens the task in Todoist. Hold the pointer on it to see the paper burn.
 						</p>
 					</aside>
 				</div>
@@ -307,8 +425,8 @@ function App() {
 						Source on GitHub
 					</a>
 				</footer>
-			</main>
-		</div>
+			</div>
+		</main>
 	);
 }
 
