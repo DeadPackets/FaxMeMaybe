@@ -1,6 +1,5 @@
 import * as React from "react";
 import { X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -29,6 +28,7 @@ interface LabelSelectorProps {
   placeholder?: string;
   disabled?: boolean;
   maxLabels?: number;
+  "aria-labelledby"?: string;
 }
 
 // Todoist color mapping
@@ -67,8 +67,10 @@ export function LabelSelector({
   placeholder = "Select labels...",
   disabled = false,
   maxLabels = 5,
+  "aria-labelledby": labelledBy,
 }: LabelSelectorProps) {
   const [open, setOpen] = React.useState(false);
+  const triggerId = React.useId();
   const [inputValue, setInputValue] = React.useState("");
 
   const handleSelect = (labelName: string) => {
@@ -98,26 +100,22 @@ export function LabelSelector({
             const label = labels.find((l) => l.name === labelName);
             const color = getLabelColor(label?.color);
             return (
-              <Badge
+              <span
                 key={labelName}
-                variant="secondary"
-                className="gap-1 pr-1"
-                style={{
-                  backgroundColor: `${color}20`,
-                  borderColor: color,
-                  color: color,
-                }}
+                className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-ink py-0.5 pr-0.5 pl-2.5 font-mono text-xs text-ink"
               >
+                <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: color }} />
                 {labelName}
                 <button
                   type="button"
-                  className="ml-1 rounded-full outline-none hover:opacity-75 focus:ring-1"
+                  aria-label={`Remove label ${labelName}`}
+                  className="grid size-6 place-items-center rounded-full hover:bg-accent focus-visible:outline-2 focus-visible:outline-signal"
                   onClick={() => handleRemove(labelName)}
                   disabled={disabled}
                 >
-                  <X className="h-3 w-3" />
+                  <X aria-hidden="true" className="size-3.5" />
                 </button>
-              </Badge>
+              </span>
             );
           })}
         </div>
@@ -130,9 +128,11 @@ export function LabelSelector({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            id={triggerId}
+            aria-labelledby={labelledBy ? `${labelledBy} ${triggerId}` : undefined}
             className={cn(
-              "w-full justify-start text-left font-normal",
-              !selectedLabels.length && "text-muted-foreground"
+              "h-auto w-full justify-start rounded-none border-0 border-b-2 border-ink bg-transparent px-0 py-1.5 text-left text-[1.0625rem] font-normal shadow-none hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-signal focus-visible:ring-0",
+              !selectedLabels.length && "text-ink-soft"
             )}
             disabled={disabled || selectedLabels.length >= maxLabels}
           >
@@ -178,7 +178,7 @@ export function LabelSelector({
       </Popover>
 
       {selectedLabels.length >= maxLabels && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-soft">
           Maximum of {maxLabels} labels allowed
         </p>
       )}

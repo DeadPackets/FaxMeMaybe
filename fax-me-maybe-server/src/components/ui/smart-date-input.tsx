@@ -1,23 +1,18 @@
 import * as React from "react";
-import { CalendarIcon, Clock } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 interface SmartDateInputProps {
+  id?: string;
+  inputClassName?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -35,6 +30,8 @@ const DATE_SUGGESTIONS = [
 ];
 
 export function SmartDateInput({
+  id,
+  inputClassName,
   value,
   onChange,
   placeholder = "Enter date or 'tomorrow at 2pm'",
@@ -86,13 +83,15 @@ export function SmartDateInput({
   return (
     <div className="space-y-2">
       <div className="relative">
-        <Input
+        <input
+          id={id}
           type="text"
           value={value}
           onChange={handleInputChange}
           placeholder={placeholder}
           disabled={disabled}
-          className="pr-10"
+          aria-describedby={id ? `${id}-hint` : undefined}
+          className={cn(inputClassName, "pr-11")}
         />
         <Popover open={showCalendar} onOpenChange={setShowCalendar}>
           <PopoverTrigger asChild>
@@ -100,10 +99,11 @@ export function SmartDateInput({
               type="button"
               variant="ghost"
               size="icon"
-              className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+              className="absolute right-0 top-1/2 size-10 -translate-y-1/2 text-ink hover:bg-accent"
               disabled={disabled}
+              aria-label="Pick a date from the calendar"
             >
-              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+              <CalendarIcon aria-hidden="true" className="size-5" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
@@ -118,42 +118,23 @@ export function SmartDateInput({
         </Popover>
       </div>
 
-      {/* Quick suggestions */}
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {DATE_SUGGESTIONS.map((suggestion) => (
-          <TooltipProvider key={suggestion.value}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-6 text-xs",
-                    value === suggestion.value && "bg-primary text-primary-foreground"
-                  )}
-                  onClick={() => handleSuggestionClick(suggestion.value)}
-                  disabled={disabled}
-                >
-                  {suggestion.label}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Set due date to "{suggestion.value}"</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <button
+            key={suggestion.value}
+            type="button"
+            aria-pressed={value === suggestion.value}
+            onClick={() => handleSuggestionClick(suggestion.value)}
+            disabled={disabled}
+            className="h-8 rounded-full border-[1.5px] border-ink px-3 font-mono text-[0.6875rem] text-ink transition-colors duration-150 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal aria-pressed:bg-ink aria-pressed:text-paper disabled:opacity-60"
+          >
+            {suggestion.label}
+          </button>
         ))}
       </div>
-
-      {/* Help text */}
-      <div className="flex items-start gap-2 text-xs text-muted-foreground">
-        <Clock className="h-3 w-3 mt-0.5 flex-shrink-0" />
-        <p>
-          Supports natural language like "tomorrow at 2pm", "next Monday", "in 3 days",
-          or pick a date from the calendar.
-        </p>
-      </div>
+      <p id={id ? `${id}-hint` : undefined} className="text-xs text-ink-soft">
+        Type a date in plain English, like "next Monday at 2pm".
+      </p>
     </div>
   );
 }

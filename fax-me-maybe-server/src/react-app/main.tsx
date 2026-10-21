@@ -1,28 +1,26 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
-import App from "./App.tsx";
 import TodoTicket from "./TodoTicket.tsx";
-import FirstBloodReceipt from "./FirstBloodReceipt.tsx";
-import AdminDashboard from "./AdminDashboard.tsx";
-import ViewTodo from "./ViewTodo.tsx";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/components/theme-provider";
+
+// The ticket route stays light for the headless render; the form pulls in the date picker and label search
+const App = lazy(() => import("./App.tsx"));
+const FirstBloodReceipt = lazy(() => import("./FirstBloodReceipt.tsx"));
 
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
-		<ThemeProvider defaultTheme="dark" storageKey="faxmemaybe-theme">
-			<BrowserRouter>
+		<BrowserRouter>
+			<Suspense>
 				<Routes>
 					<Route path="/" element={<App />} />
 					<Route path="/todo-ticket" element={<TodoTicket />} />
 					<Route path="/first-blood-receipt" element={<FirstBloodReceipt />} />
-					<Route path="/admin" element={<AdminDashboard />} />
-					<Route path="/view-todo" element={<ViewTodo />} />
+					<Route path="*" element={<Navigate to="/" replace />} />
 				</Routes>
-			</BrowserRouter>
-			<Toaster />
-		</ThemeProvider>
+			</Suspense>
+		</BrowserRouter>
+		<Toaster />
 	</StrictMode>,
 );
