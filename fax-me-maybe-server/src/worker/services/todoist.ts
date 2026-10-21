@@ -45,23 +45,13 @@ export interface TodoistTask {
   url: string;
 }
 
-export interface ProductivityStats {
-  completed_count: number;
-  karma: number;
-  karma_trend: string;
-  days_items: Array<{ date: string; total_completed: number }>;
-  week_items: Array<{ from: string; to: string; total_completed: number }>;
-}
-
 export class TodoistService {
   private api: TodoistApi;
-  private apiToken: string;
   private projectName: string;
   private cachedProjectId: string | null = null;
 
   constructor(apiToken: string, projectName: string = 'FaxMeMaybe') {
     this.api = new TodoistApi(apiToken);
-    this.apiToken = apiToken;
     this.projectName = projectName;
   }
 
@@ -221,30 +211,6 @@ export class TodoistService {
     } catch (error) {
       console.error('Failed to get labels:', error);
       return [];
-    }
-  }
-
-  /**
-   * Get productivity stats from Todoist (includes completed_count)
-   * Note: This is account-wide, not project-specific
-   */
-  async getProductivityStats(): Promise<ProductivityStats | null> {
-    try {
-      const response = await fetch('https://api.todoist.com/api/v1/tasks/completed/stats', {
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        console.error('Failed to get productivity stats:', response.status);
-        return null;
-      }
-
-      return await response.json() as ProductivityStats;
-    } catch (error) {
-      console.error('Failed to get productivity stats:', error);
-      return null;
     }
   }
 

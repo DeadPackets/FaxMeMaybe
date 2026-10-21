@@ -23,7 +23,7 @@ function Counter({ id, value, max }: { id: string; value: string; max: number })
 function App() {
 	const [form, setForm] = useState(EMPTY_FORM);
 	const [status, setStatus] = useState<"idle" | "sending" | "sent">("idle");
-	const [stats, setStats] = useState<{ pending: number; completed: number } | null>(null);
+	const [stats, setStats] = useState<{ printed: number; pending: number; completed: number } | null>(null);
 	const [labels, setLabels] = useState<LabelOption[] | null>(null);
 	const [previewTime] = useState(() => new Date().toISOString());
 	const level = IMPORTANCE_LEVELS.find((l) => l.value === form.importance) ?? IMPORTANCE_LEVELS[2];
@@ -123,7 +123,7 @@ function App() {
 							</h2>
 							{stats && (
 								<span className="font-mono text-[0.6875rem] text-ink-soft">
-									No. {(stats.pending + stats.completed + 1).toString().padStart(4, "0")}
+									No. {(stats.printed + 1).toString().padStart(4, "0")}
 								</span>
 							)}
 						</div>
