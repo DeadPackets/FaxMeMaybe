@@ -73,8 +73,9 @@ interface TodoSubmission {
 	source?: string;
 }
 
-// Tasks from other Todoist projects print only with this label
-const PRINT_LABEL = "print";
+// Every new Todoist task prints unless it has this label
+const NOPRINT_LABEL = "noprint";
+const STATUS_BY_EVENT: Record<string, string> = { "item:completed": "done", "item:uncompleted": "printed", "item:deleted": "deleted" };
 
 interface TicketData {
 	todo: string;
@@ -273,30 +274,25 @@ app.get("/api/todos/count", async (c) => {
 	}
 });
 
-// Get comprehensive stats: pending and completed
+// Ticket stats from D1, kept current by the Todoist webhooks
 app.get("/api/todos/stats", async (c) => {
 	try {
-		const todoist = new TodoistService(
-			c.env.TODOIST_API_TOKEN,
-			c.env.TODOIST_PROJECT_NAME || 'FaxMeMaybe'
-		);
-
-		// Run both queries in parallel for performance
-		const [pendingTasks, productivityStats] = await Promise.all([
-			// Pending: active tasks from Todoist
-			todoist.getTasks(),
-			// Completed: from Todoist productivity stats API
-			todoist.getProductivityStats(),
+		const db = c.env.faxmemaybe_db;
+		const [counts, durations] = await db.batch<{ status?: string; n?: number; h?: number }>([
+			db.prepare("SELECT status, COUNT(*) AS n FROM todo_mappings GROUP BY status"),
+			db.prepare("SELECT (julianday(closed_at) - julianday(created_at)) * 24 AS h FROM todo_mappings WHERE status = 'done' AND closed_at IS NOT NULL ORDER BY h"),
 		]);
-
-		const pending = pendingTasks.length;
-		const completed = productivityStats?.completed_count || 0;
+		const count = (status: string) => counts.results.find((r) => r.status === status)?.n ?? 0;
+		const hours = durations.results.map((r) => r.h!);
+		const mid = hours.length / 2;
 
 		return c.json({
 			success: true,
 			stats: {
-				pending,
-				completed,
+				printed: counts.results.reduce((sum, r) => sum + r.n!, 0),
+				pending: count("printed"),
+				completed: count("done"),
+				medianHoursToDone: hours.length ? (hours[Math.floor(mid)] + hours[Math.ceil(mid) - 1]) / 2 : null,
 			}
 		});
 	} catch (error) {
@@ -515,8 +511,7 @@ app.post("/api/webhooks/todoist", async (c) => {
 
 				const t = todoist.taskToTodoistTask(task);
 				// API-created tasks carry a source and already printed in POST /api/todos
-				if (t.source) break;
-				if (task.projectId !== await todoist.getProjectId() && !t.labels.includes(PRINT_LABEL)) break;
+				if (t.source || t.labels.includes(NOPRINT_LABEL)) break;
 
 				// Todoist can deliver a webhook more than once; the UNIQUE mapping makes printing idempotent
 				const todoId = generateUUID();
@@ -540,24 +535,16 @@ app.post("/api/webhooks/todoist", async (c) => {
 				break;
 			}
 
-			case "item:deleted":
-				// Clean up our mapping when a task is deleted in Todoist
-				await c.env.faxmemaybe_db
-					.prepare("DELETE FROM todo_mappings WHERE todoist_task_id = ?")
-					.bind(event.event_data.id)
-					.run();
-				console.log("Cleaned up mapping for deleted Todoist task:", event.event_data.id);
-				break;
-
 			case "item:completed":
-				console.log("Task completed in Todoist:", event.event_data.id);
-				// Could add notifications or other actions here
-				break;
-
 			case "item:uncompleted":
-				console.log("Task reopened in Todoist:", event.event_data.id);
-				// Could add notifications or other actions here
+			case "item:deleted": {
+				const status = STATUS_BY_EVENT[event.event_name];
+				await c.env.faxmemaybe_db
+					.prepare("UPDATE todo_mappings SET status = ?, closed_at = ? WHERE todoist_task_id = ?")
+					.bind(status, status === "printed" ? null : new Date().toISOString(), event.event_data.id)
+					.run();
 				break;
+			}
 
 			default:
 				console.log("Unhandled Todoist webhook event:", event.event_name);

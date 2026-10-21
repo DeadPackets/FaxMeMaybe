@@ -2,7 +2,7 @@
 
 ## Decisions
 1. Todoist is the only place to manage, complete and delete tasks. The web app is an intake form plus the ticket renderer.
-2. Printing rule: every task in the FaxMeMaybe project prints. A task in another project prints only if it has the `print` label. Tasks created through `POST /api/todos` print once, at creation.
+2. Printing rule: every new Todoist task prints, in any project, unless it has the `noprint` label. Tasks created through `POST /api/todos` print once, at creation. (Changed after v1.0 at the owner's request; it was the FaxMeMaybe project plus a `print` label.)
 3. Sync method: Todoist webhooks (`item:added`). This needs a one-time OAuth setup (see Setup).
 4. Delete `/admin` and `/view-todo`. The ticket QR opens the task in the Todoist app.
 5. Visual direction: A, "Physical receipt" (mocks: https://claude.ai/artifact/MEiwX5dQLi85RBp7nU52Hy). Single look, no dark mode.
@@ -37,4 +37,5 @@
 - Fonts: swapped `@fontsource-variable/inter` for Instrument Sans and Martian Mono (self-hosted, so the headless render never waits on Google Fonts).
 - Print failures after the Todoist task exists now return 200 with `printed: false` instead of an error, so senders do not retry into duplicates.
 - QR uses the short `https://app.todoist.com/app/task/<id>` form (49 vs 122 chars, QR version 4 instead of about 8). Assumed: the Todoist app accepts the id-only path.
+- v1.1: `item:completed` / `item:deleted` set `status` and `closed_at` in `todo_mappings`; `/api/todos/stats` reads D1 instead of 2 Todoist calls. Rows closed in Todoist before the webhooks existed count as done with no `closed_at`, so they are left out of the median.
 - Not done: First Blood receipt ASCII box overflow (P3), DESIGN.md.

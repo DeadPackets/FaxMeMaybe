@@ -32,7 +32,7 @@ flowchart LR
 5. A Raspberry Pi polls the queue, downloads the PNG and prints it with python-escpos.
 6. When the task is done, I scan the QR code on the ticket. It opens the task in the Todoist app, and I tick it off there.
 
-Tasks that I add in the Todoist apps print too. A Todoist webhook (`item:added`) tells the Worker, which prints every new task in the FaxMeMaybe project and every task with the `print` label.
+Tasks that I add in the Todoist apps print too. Todoist webhooks tell the Worker when a task is added, completed or deleted. Every new task prints unless it has the `noprint` label, and the stats on the site count tickets printed, done and still on the desk.
 
 ## Repository layout
 
@@ -77,7 +77,7 @@ npm run deploy
 This makes tasks added in the Todoist apps print.
 
 1. Create an app in the [Todoist App Console](https://developer.todoist.com/appconsole.html).
-2. Set the webhook callback URL to `https://<your domain>/api/webhooks/todoist` and select the `item:added` event.
+2. Set the webhook callback URL to `https://<your domain>/api/webhooks/todoist` and select the `item:added`, `item:completed` and `item:deleted` events.
 3. Todoist sends webhooks only for accounts that authorized the app, so run the app's OAuth flow once with your own account.
 4. Run `npx wrangler secret put TODOIST_WEBHOOK_SECRET` with the app's client secret.
 
