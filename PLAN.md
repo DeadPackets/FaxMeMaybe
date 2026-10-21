@@ -35,7 +35,7 @@
 - `run_worker_first` lists `/api/*` and `/view-todo`. The array form serves everything else asset-first, so `/api/*` must be listed.
 - Form puts "What needs doing" first, ahead of importance (the mock had importance first). The required field leads.
 - Fonts: swapped `@fontsource-variable/inter` for Instrument Sans and Martian Mono (self-hosted, so the headless render never waits on Google Fonts).
-- Print failures after the Todoist task exists now return 200 with `printed: false` instead of an error, so senders do not retry into duplicates.
+- `POST /api/todos` and the `item:added` webhook put a print job on the `faxmemaybe-print` Cloudflare Queue (3 retries, 10 s apart). The reply comes when the Todoist task is saved: 1.4-2.0 s instead of 4.9-14 s. `waitUntil` lost 2 of 5 preview prints, both on the first request to a fresh version. The `printed` field is gone from the response.
 - QR uses the short `https://app.todoist.com/app/task/<id>` form (49 vs 122 chars, QR version 4 instead of about 8). Assumed: the Todoist app accepts the id-only path.
 - v1.1: `item:completed` / `item:deleted` set `status` and `closed_at` in `todo_mappings`; `/api/todos/stats` reads D1 instead of 2 Todoist calls. Rows closed in Todoist before the webhooks existed count as done with no `closed_at`, so they are left out of the median.
 - Not done: First Blood receipt ASCII box overflow (P3), DESIGN.md.

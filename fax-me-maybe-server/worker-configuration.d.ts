@@ -18,6 +18,7 @@ declare namespace Cloudflare {
 		faxmemaybe_db: D1Database;
 		RATE_LIMITER: RateLimit;
 		CLOUDFLARE_BROWSER: Fetcher;
+		PRINT_QUEUE: Queue;
 		// Todoist integration
 		TODOIST_API_TOKEN: string;
 		TODOIST_WEBHOOK_SECRET: string;
