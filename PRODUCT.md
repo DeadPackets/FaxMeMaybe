@@ -5,7 +5,7 @@
 product
 
 ## Users
-Two groups use the public form at remind.deadpackets.pw. Friends and family send real reminders to the owner, often from a phone and without much context. Portfolio visitors try the form to see the over-engineered pipeline work end to end. Automations (n8n email parsing, Linear) send most of the volume through `POST /api/todos` and never see the UI. The owner uses `/admin` and scans the printed ticket's QR code to open `/view-todo` and mark tasks done, usually on a phone at the desk.
+Two groups use the public form at remind.deadpackets.pw. Friends and family send real reminders to the owner, often from a phone and without much context. Portfolio visitors try the form to see the over-engineered pipeline work end to end. Automations (n8n email parsing, Linear) send most of the volume through `POST /api/todos` and never see the UI. The owner manages tasks in the Todoist apps and scans the printed ticket's QR code to open the task there, usually on a phone at the desk.
 
 ## Product Purpose
 Turn a request into a physical thermal-printed ticket on the owner's desk, with Todoist as the source of truth. Success: a sender can send a TODO in under 30 seconds without instructions. The ticket is readable at arm's length, and one QR scan closes the loop.
@@ -24,7 +24,7 @@ Physical, playful, and exact. The web UI previews the object that comes out of t
 2. **Print-true.** Ticket output uses pure black on white, sizes set in the 576 px printer width, and no detail that dithers away.
 3. **Thirty seconds to send.** One required field, sensible defaults, no account. Optional fields never block.
 4. **Serious about the silly.** Precise craft and plain copy. The personality lives in material and form, not in exclamation marks.
-5. **Close the loop on a phone.** QR scan to `/view-todo` to done must work one-handed on a small screen.
+5. **Close the loop on a phone.** QR scan to the Todoist task to done must work one-handed on a small screen.
 
 ## Accessibility & Inclusion
 WCAG 2.2 AA for all web routes: 4.5:1 text contrast, visible focus, full keyboard operation, labelled controls, 24 px minimum target size (44 px preferred on the phone flows), and a `prefers-reduced-motion` alternative for all motion. Importance must not rely on color or emoji alone; it always has a text label.
