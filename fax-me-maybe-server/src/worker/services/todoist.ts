@@ -1,4 +1,4 @@
-import { TodoistApi, type Task, type Label } from '@doist/todoist-api-typescript';
+import { TodoistApi, type Task, type Label } from '@doist/todoist-sdk';
 
 // Priority mapping: FaxMeMaybe importance (1-5) to Todoist priority (1-4, where 4 is most urgent)
 // Todoist uses inverted scale: p1 (priority 4) = most urgent, p4 (priority 1) = lowest
@@ -51,7 +51,15 @@ export class TodoistService {
   private cachedProjectId: string | null = null;
 
   constructor(apiToken: string, projectName: string = 'FaxMeMaybe') {
-    this.api = new TodoistApi(apiToken);
+    // nodejs_compat makes the SDK pick its undici transport, which fails in Workers ("fetch failed")
+    this.api = new TodoistApi(apiToken, {
+      customFetch: async (url, options) => {
+        const res = await fetch(url, options);
+        const headers: Record<string, string> = {};
+        res.headers.forEach((value, key) => (headers[key] = value));
+        return { ok: res.ok, status: res.status, statusText: res.statusText, headers, text: () => res.text(), json: () => res.json() };
+      },
+    });
     this.projectName = projectName;
   }
 
@@ -253,8 +261,8 @@ export class TodoistService {
       from,
       source,
       completed: task.checked || false,
-      completedAt: task.completedAt || undefined,
-      createdAt: task.addedAt || new Date().toISOString(),
+      completedAt: task.completedAt?.toISOString(),
+      createdAt: (task.addedAt ?? new Date()).toISOString(),
       url: task.url,
     };
   }
