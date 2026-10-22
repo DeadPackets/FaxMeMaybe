@@ -168,7 +168,7 @@ export function startHeat({ page, canvas, hero, anchor, feed, burnCanvas, import
 	let reduced = mq.matches;
 	let W = 0, H = 0, trail = new Float32Array(0), rowHeat = new Uint8Array(0), rowInk = new Uint8Array(0);
 	let img: ImageData | null = null, px = new Uint32Array(0);
-	let raf = 0, last = 0, hotUntil = 0, flameSz = 0, flameGap = 0;
+	let raf = 0, last = 0, hotUntil = 0, flameSz = 0, flameGap = 0, flameSeen = false;
 	let sweep: { y: number; end: number; v: number } | null = null, lp: { x: number; y: number } | null = null;
 
 	let burn = makeBurn(burnCanvas);
@@ -234,6 +234,7 @@ export function startHeat({ page, canvas, hero, anchor, feed, burnCanvas, import
 		flameSz = reduced || !flameSz ? ft.size : flameSz + (ft.size - flameSz) * Math.min(1, dt * 5);
 		flameGap = Math.abs(ft.size - flameSz);
 		const sz = flameSz, fx0 = ft.cx - sz / 2, fy0 = ft.bottom - sz;
+		flameSeen = fy0 + sz > y0 && fy0 < y1;
 		if (sweep) {
 			sweep.y += sweep.v * dt;
 			for (let y = Math.floor(sweep.y) - 2; y <= Math.floor(sweep.y) + 1; y++) {
@@ -250,7 +251,7 @@ export function startHeat({ page, canvas, hero, anchor, feed, burnCanvas, import
 			const inF = y >= fy0 && y < fy0 + sz;
 			if (!all && !inF && !rowHeat[y] && !rowInk[y]) continue;
 			const row = y * W, by = (y & 7) * 8, v = ((y - fy0) / sz) * M, vi = v | 0;
-			const wob = reduced ? 0 : Math.sin(v * 0.16 + t) * 2.4 * (1 - v / M), hotness = 0.55 + (0.6 * v) / M;
+			const wob = reduced ? 0 : Math.sin(v * 0.16 + t) * 2.4 * (1 - v / M), hotness = (0.55 + (0.6 * v) / M) * (0.92 + 0.08 * Math.sin(t * 1.7 - v * 0.3));
 			let rowMax = 0, ink = 0;
 			for (let x = 0; x < W; x++) {
 				const i = row + x;
@@ -355,7 +356,7 @@ export function startHeat({ page, canvas, hero, anchor, feed, burnCanvas, import
 	function frame(now: number) {
 		const bgHot = draw(now, false);
 		const burning = burnFrame(now);
-		const busy = now < hotUntil || bgHot > 0.02 || burning || !!sweep || flameGap > 0.5;
+		const busy = now < hotUntil || bgHot > 0.02 || burning || !!sweep || flameGap > 0.5 || flameSeen;
 		raf = !reduced && !document.hidden && busy ? requestAnimationFrame(frame) : 0;
 	}
 
